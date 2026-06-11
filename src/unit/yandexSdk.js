@@ -6,7 +6,7 @@ const CLOUD_STORAGE_KEY = 'vk_cloud_score';
 // ===== КОНФИГУРАЦИЯ =====
 const APP_ID = 54620141;
 // ACCESS_TOKEN для серверных вызовов (не для клиента)
-const ACCESS_TOKEN = "2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994";
+const ACCESS_TOKEN = '2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994';
 
 let vkInitialized = false;
 let vkUserId = null;
@@ -96,9 +96,12 @@ export const loadYandexHighScore = (storeInstance) => {  const platform = getPla
   if (platform === 'vk') {    if (!vkInitialized || !vkUserId) {      console.warn('[loadYandexHighScore] VK не инициализирован');      return;    }    
     if (typeof vkBridge !== 'undefined') {      vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })        .then((data) => {          let cloudScore = 0;          if (data.keys && data.keys[0] && data.keys[0].value) {            cloudScore = parseInt(data.keys[0].value, 10) || 0;          }
                     if (updateMaxScore(cloudScore, 'VK Storage')) {            // Если рекорд обновился, отправляем в таблицу лидеров
-            if (vkInitialized && vkUserId && vkUserToken && cloudScore > 0) {              vkBridge.send('VKWebAppCallAPIMethod', {                method: 'secure.addAppEvent',
-                request_id: 'syncScore_' + Date.now(),                params: {                  client_secret: ACCESS_TOKEN,                  user_id: vkUserId,                 activity_id: 2,                  value: cloudScore,                  v: '5.131',
-                  global: 1,                  access_token: vkUserToken                }              })
+            if (vkInitialized && vkUserId && vkUserToken && cloudScore > 0) {              vkBridge.send('VKWebAppCallAPIMethod', {             
+                 method: 'secure.addAppEvent',
+                request_id: 'syncScore_' + Date.now(),                params: {                  
+                  client_secret: 'Q5I9iCJXGWiwYDb8aaHr',                  user_id: vkUserId,                
+                   activity_id: 2,                  value: cloudScore,                  v: '5.131',
+                  global: 1,                  access_token: ACCESS_TOKEN                }              })
               .then(() => console.log(`🏆 Рекорд ${cloudScore} синхронизирован с таблицей лидеров ВК!`))              .catch(err => console.error('❌ Ошибка синхронизации с таблицей:', err));
             }          }        })        .catch(err => console.error('Ошибка загрузки из VK Storage:', err));    }  }  
   // 5. Для ОК — также пробуем загрузить из VK Storage (как резерв, если Cloudflare недоступен)
@@ -127,8 +130,11 @@ export const saveYandexScore = (scoreValue) => {  const currentScore = parseInt(
     vkBridge.send('VKWebAppCallAPIMethod', {      method: 'apps.getScore',      request_id: 'checkScore_' + Date.now(),      params: {        user_id: vkUserId,        v: '5.131',        access_token: vkUserToken      }    })
     .then((data) => {      let currentLeaderboardScore = parseInt(data.response) || 0;      console.log(`📊 Текущий рекорд в таблице лидеров: ${currentLeaderboardScore}`);      
       // Отправляем ТОЛЬКО если текущий счёт БОЛЬШЕ табличного
-      if (currentScore > currentLeaderboardScore) {        vkBridge.send('VKWebAppCallAPIMethod', {          method: 'secure.addAppEvent',          request_id: 'addScore_' + Date.now(),          params: {            client_secret: ACCESS_TOKEN,
-            user_id: vkUserId,            activity_id: 2,            value: currentScore,            v: '5.131',            global: 1,            access_token: vkUserToken          }
+      if (currentScore > currentLeaderboardScore) {        vkBridge.send('VKWebAppCallAPIMethod', {       
+           method: 'secure.addAppEvent',          request_id: 'addScore_' + Date.now(),          params: {           
+             client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
+            user_id: vkUserId,            activity_id: 2,            value: currentScore,            v: '5.131',            global: 1,       
+                 access_token: ACCESS_TOKEN          }
         })        .then(() => console.log(`🏆 Рекорд ${currentScore} отправлен в таблицу лидеров ВК! (было ${currentLeaderboardScore})`))        .catch(err => console.error('❌ Ошибка отправки в таблицу лидеров:', err));
       } else {        console.log(`ℹ️ Рекорд ${currentScore} не превышает табличный ${currentLeaderboardScore}, отправка не требуется`);      }    })    .catch(err => console.error('❌ Ошибка получения рекорда из таблицы:', err));  }
 };
