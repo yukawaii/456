@@ -24,7 +24,30 @@ MODE_SHAPES[GAME_MODES.TETRA] = {
   T: [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
 };
 
-var currentMode = localStorage.getItem('tetris_game_mode') || GAME_MODES.CLASSIC;
+// ПО УМОЛЧАНИЮ ТЕТРА
+var currentMode = GAME_MODES.TETRA;
+
+// Читаем из localStorage, но если ничего нет - оставляем ТЕТРА
+try {
+  var saved = localStorage.getItem('tetris_game_mode');
+  if (saved === GAME_MODES.CLASSIC) {
+    currentMode = GAME_MODES.CLASSIC;
+  } else if (saved === GAME_MODES.TETRA) {
+    currentMode = GAME_MODES.TETRA;
+  } else {
+    // Нет сохраненного режима - ставим ТЕТРА и сохраняем
+    currentMode = GAME_MODES.TETRA;
+    localStorage.setItem('tetris_game_mode', GAME_MODES.TETRA);
+  }
+} catch(e) {}
+
+// Устанавливаем глобальную переменную
+if (typeof window !== 'undefined') {
+  window.currentGameMode = currentMode;
+  console.log('modes.js: установил window.currentGameMode =', currentMode);
+  console.log('modes.js: localStorage tetris_game_mode =', localStorage.getItem('tetris_game_mode'));
+}
+
 var currentShapes = MODE_SHAPES[currentMode];
 
 function getCurrentMode() {
@@ -40,8 +63,11 @@ function setGameMode(mode) {
     currentMode = mode;
     currentShapes = MODE_SHAPES[mode];
     localStorage.setItem('tetris_game_mode', mode);
-    if (typeof window !== 'undefined' && window.blockShapeUpdate) {
-      window.blockShapeUpdate(currentShapes);
+    if (typeof window !== 'undefined') {
+      window.currentGameMode = mode;
+      if (window.blockShapeUpdate) {
+        window.blockShapeUpdate(currentShapes);
+      }
     }
   }
 }

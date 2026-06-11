@@ -19,6 +19,7 @@ import states from '../control/states';
 import { showFullscreenAd } from '../unit/yandexSdk';
 import { fetchYandexLeaderboard } from '../unit/yandexSdk';
 import { GAME_MODES, MODE_SHAPES, setGameMode, getCurrentMode } from '../unit/modes';
+import ModeShapes from '../components/ModeShapes';
 
 class App extends React.Component {
   constructor() {
@@ -127,10 +128,12 @@ class App extends React.Component {
                   number={this.props.cur ? this.props.speedRun : this.props.speedStart}
                   length={1}
                 />
-
-                <p>{i18n.next[lan]}</p>
+                <p>{i18n.next[lan]}</p>       
                 <Next data={this.props.next} />
+
                 <div className={style.bottom}>
+                    {/* ИНДИКАТОР РЕЖИМА ПЕРЕНЕСЕН СЮДА - ПЕРВЫМ ВНУТРИ BOTTOM */}
+  <ModeShapes />
                   <Music data={this.props.music} />
                   <Pause data={this.props.pause} />
                   <Number time />

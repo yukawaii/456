@@ -35,6 +35,12 @@ const down = (store) => {
       }
       
       setGameMode(newMode);
+// После setGameMode(newMode) добавьте:
+if (typeof window !== 'undefined') {
+  window.dispatchEvent(new Event('modeChanged'));
+}
+window.currentGameMode = newMode;
+console.log('Режим сохранен в window.currentGameMode:', newMode);
       
       // Меняем фигурки в const.js
       const newShapes = MODE_SHAPES[newMode];
