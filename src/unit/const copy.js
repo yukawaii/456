@@ -909,19 +909,14 @@ try {
 } catch (e) {}
 
 // Для динамического обновления фигур
-// В const.js, замените существующую функцию updateBlockShape на эту:
-export const updateBlockShape = (newShapes) => {  // Очищаем старые фигурки
-  Object.keys(blockShape).forEach(key => delete blockShape[key]);  // Добавляем новые
-  Object.assign(blockShape, newShapes);  
-  // ОЧЕНЬ ВАЖНО: обновляем blockType для генерации следующих фигурок
-  blockType.length = 0;  Object.keys(blockShape).forEach(key => blockType.push(key));  
-  console.log('Фигурки обновлены:', Object.keys(blockShape));
-  console.log('Типы для генерации:', blockType);
+export const updateBlockShape = (newShapes) => {
+  Object.keys(blockShape).forEach(key => delete blockShape[key]);
+  Object.assign(blockShape, newShapes);
+  blockType.length = 0;
+  Object.keys(blockShape).forEach(key => blockType.push(key));
 };
-// Объявляем глобально
 if (typeof window !== 'undefined') {
   window.blockShapeUpdate = updateBlockShape;
   window.blockShape = blockShape;
-  window.blockType = blockType; // Добавляем для доступа из mode.js
 }
 
