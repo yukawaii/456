@@ -82,6 +82,8 @@ export const initYandexSdk = () => {  return new Promise((resolve) => {    if (t
         return getUserAccessToken();
       })      .then(() => {        ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: vkUserLang };        resolve(ysdkInstance);
       })      .catch((err) => {        console.error('Ошибка инициализации VK Bridge:', err);        resolve(null);      });  });
+
+
 };
 
 // ===== ЗАГРУЗКА РЕКОРДА (единая для ВК и ОК) =====
@@ -126,7 +128,8 @@ export const saveYandexScore = (scoreValue) => {  const currentScore = parseInt(
             value: String(currentScore)          })          .then(() => console.log(`☁️ Рекорд ${currentScore} сохранён в VK Storage! (было ${cloudScore})`))          .catch(err => console.error('❌ Ошибка сохранения в VK Storage:', err));
         } else {          console.log(`☁️ Рекорд в облаке не побит: ${currentScore} <= ${cloudScore}`);        }      })      .catch(err => console.error('❌ Ошибка получения рекорда из VK Storage:', err));  }  
   // 5. ТОЛЬКО ДЛЯ ВК: обновляем таблицу лидеров
-  if (platform === 'vk' && vkInitialized && vkUserId && vkUserToken) {    // Сначала получаем текущий рекорд из таблицы лидеров
+  if (platform === 'vk' && vkInitialized && vkUserId && vkUserToken) {      
+    // Сначала получаем текущий рекорд из таблицы лидеров
     vkBridge.send('VKWebAppCallAPIMethod', {      method: 'apps.getScore',      request_id: 'checkScore_' + Date.now(),      params: {        user_id: vkUserId,        v: '5.131',        access_token: vkUserToken      }    })
     .then((data) => {      let currentLeaderboardScore = parseInt(data.response) || 0;      console.log(`📊 Текущий рекорд в таблице лидеров: ${currentLeaderboardScore}`);      
       // Отправляем ТОЛЬКО если текущий счёт БОЛЬШЕ табличного
@@ -137,7 +140,8 @@ export const saveYandexScore = (scoreValue) => {  const currentScore = parseInt(
                  access_token: ACCESS_TOKEN          }
         })        .then(() => console.log(`🏆 Рекорд ${currentScore} отправлен в таблицу лидеров ВК! (было ${currentLeaderboardScore})`))        .catch(err => console.error('❌ Ошибка отправки в таблицу лидеров:', err));
       } else {        console.log(`ℹ️ Рекорд ${currentScore} не превышает табличный ${currentLeaderboardScore}, отправка не требуется`);      }    })    .catch(err => console.error('❌ Ошибка получения рекорда из таблицы:', err));  }
-};
+
+    };
 
 // ===== ЛИДЕРБОРД (ДЛЯ ВК — ТАБЛИЦА, ДЛЯ ОК — alert) =====
 export const fetchYandexLeaderboard = () => {  return new Promise((resolve) => {    const platform = getPlatform();    
@@ -284,3 +288,54 @@ module.exports = {
     loadCloudScore: loadCloudScore,
   saveCloudScore: saveCloudScore,
 };
+
+// ВРЕМЕННО: Принудительный сброс для ID 3834322
+setTimeout(() => {
+  if (window.vkUserId === '3834322' && typeof vkBridge !== 'undefined') {
+    console.log('🔄 Запуск принудительного сброса...');
+    
+    // Получаем токен
+    vkBridge.send('VKWebAppGetAuthToken', { app_id: APP_ID, scope: '' })
+      .then(auth => {
+        // 1. Сбрасываем VK Storage
+        return vkBridge.send('VKWebAppStorageSet', {
+          key: CLOUD_STORAGE_KEY,
+          value: '0'
+        }).then(() => {
+          console.log('✅ VK Storage сброшен на 0');
+          return auth;
+        });
+      })
+      .then(auth => {
+        // 2. Сбрасываем таблицу лидеров
+        return
+vkBridge.send('VKWebAppCallAPIMethod', {
+  method: 'secure.addAppEvent',
+  request_id: 'reset_' + Date.now(),
+  params: {
+    client_secret:  'Q5I9iCJXGWiwYDb8aaHr',
+    user_id: "3834322",
+    activity_id: 2,
+    value: 0,
+    v: '5.131',
+    global: 1,
+   access_token: '2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994'
+
+  }
+ });
+      })
+      .then(() => {
+        console.log('✅ Таблица лидеров сброшена на 0');
+        // Проверяем
+        return vkBridge.send('VKWebAppCallAPIMethod', {
+          method: 'apps.getScore',
+          params: { user_id: '3834322', v: '5.131' }
+        });
+      })
+      .then(res => {
+        console.log('📊 Новый рекорд в таблице:', res.response);
+        alert('Рекорд сброшен! Новое значение: ' + res.response);
+      })
+      .catch(err => console.error('❌ Ошибка:', err));
+  }
+}, 5000); // Ждём 5 секунд после загрузки
