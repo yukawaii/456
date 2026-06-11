@@ -1,0 +1,6 @@
+name = "tetris-score-sync"
+main = "src/worker.js"
+
+kv_namespaces = [
+  { binding = "TETRIS_KV", id = "28c8d7c0fa6447c1975b24ddd8bfd400" }
+]
