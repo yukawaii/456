@@ -2,6 +2,7 @@ import store from '../store';
 import todo from './todo';
 import { fetchYandexLeaderboard } from '../unit/yandexSdk';
 
+
 const keyboard = {
   37: 'left',
   38: 'rotate',

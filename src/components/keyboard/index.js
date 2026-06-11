@@ -126,7 +126,15 @@ const triggerLeaderboard = (score) => {
           active={keyboard.get('invite')} 
           ref={(c) => { this.dom_invite = c; }} 
         />
-
+<Button
+  color="yellow"
+  size="s2"
+  top={80}
+  left={215}
+  label="🎮"
+  active={keyboard.get('mode')}
+  ref={(c) => { this.dom_mode = c; }}
+/>
 
 
         {/* Кнопки движений */}

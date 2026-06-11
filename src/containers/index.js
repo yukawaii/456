@@ -18,6 +18,10 @@ import { visibilityChangeEvent, isFocus } from '../unit/';
 import states from '../control/states';
 import { showFullscreenAd } from '../unit/yandexSdk';
 import { fetchYandexLeaderboard } from '../unit/yandexSdk';
+import { GAME_MODES, MODE_SHAPES, setGameMode, getCurrentMode } from '../unit/modes';
+
+
+
 
 class App extends React.Component {
   constructor() {
@@ -71,6 +75,8 @@ class App extends React.Component {
   document.body.addEventListener('click', setFocus);
   document.body.addEventListener('mousedown', setFocus);
   // ===========================================
+   window.onModeToggle = this.toggleModePreview;
+  window.onModeConfirm = this.confirmMode;
 }
   
 
@@ -140,6 +146,25 @@ class App extends React.Component {
         </div>
         <Keyboard filling={filling} keyboard={this.props.keyboard} showLeaderboard={fetchYandexLeaderboard}  />
         {/* Компонент Guide удален отсюда, чтобы очистить боковые панели экрана */}
+        {/* Блок предпросмотра режимов */}
+{this.state.previewMode && (
+  <div className={style.modePreview}>
+    <div className={style.modePreviewContent}>
+      <div className={style.modePreviewTitle}>
+        {this.state.previewMode === 'classic' ? 'Классика' : 'Режим TETRA'}
+      </div>
+      <div className={style.modePreviewShapes}>
+        {/* Здесь будут показываться фигурки, нужно добавить позже */}
+        <div style={{color: '#fff', textAlign: 'center'}}>
+          Фигуры нового режима
+        </div>
+      </div>
+      <div className={style.modePreviewHint}>
+        Нажмите СТАРТ или ПОВОРОТ, чтобы подтвердить
+      </div>
+    </div>
+  </div>
+)}
       </div>
     );
   }

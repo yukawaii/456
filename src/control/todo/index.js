@@ -8,6 +8,7 @@ import r from './r';
 import p from './p';
 import l from './l'; 
 import invite from './invite'; 
+import mode from './mode';
 
 export default {
   left,
@@ -20,4 +21,5 @@ export default {
   s,
   l,
   invite,
+    mode,
 };
