@@ -289,37 +289,3 @@ module.exports = {
     loadCloudScore: loadCloudScore,
   saveCloudScore: saveCloudScore,
 };
-
-
-// Ждём появления vkBridge и выполняем сброс ВРЕМЕННЫЙ СБРОС 
-function waitForBridge() {
-  if (typeof vkBridge !== 'undefined') {
-    console.log('✅ vkBridge найден, выполняем сброс...');
-    
-    vkBridge.send('VKWebAppCallAPIMethod', {
-      method: 'secure.addAppEvent',
-      params: {
-        client_secret:  'Q5I9iCJXGWiwYDb8aaHr',
-        user_id: "3834322",
-        activity_id: 2,
-        value: 0,
-        v: '5.131',
-        global: 1,
-        access_token: '2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994'
-      }
-    }).then(() => {
-      console.log('✅ Рекорд сброшен на 0');
-    }).catch(err => {
-      console.error('❌ Ошибка:', err);
-    });
-    
-  } else {
-    console.log('⏳ Ждём vkBridge...');
-    setTimeout(waitForBridge, 500);
-  }
-}
-
-// Запускаем ожидание
-waitForBridge();
-///конец врем блока сброса
-
