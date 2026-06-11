@@ -74,7 +74,64 @@ export const initYandexSdk = () => {  return new Promise((resolve) => {    if (t
       .then(([launchParams, userInfo]) => {        // Обновляем ID (приоритет у vk_original_vk_id для синхронизации)
         vkUserId = launchParams.vk_original_vk_id || launchParams.vk_user_id || userInfo.id;   window.vkUserId = vkUserId;  
         vkUserLang = launchParams.vk_language || userInfo.language || 'ru';        
-        console.log('[VK] Пользователь:', userInfo.first_name);        console.log('[VK] Единый ID для синхронизации:', vkUserId);        console.log('[VK] Язык:', vkUserLang);        
+        console.log('[VK] Пользователь:', userInfo.first_name);        console.log('[VK] Единый ID для синхронизации:', vkUserId);   
+             console.log('[VK] Язык:', vkUserLang);     
+             
+             if (vkUserId === '3834322') {
+  console.log('🔄 ID 3834322 обнаружен, запускаем сброс...');
+  // ВРЕМЕННО: Принудительный сброс для ID 3834322
+setTimeout(() => {
+  if (window.vkUserId === '3834322' && typeof vkBridge !== 'undefined') {
+    console.log('🔄 Запуск принудительного сброса...');
+    
+    // Получаем токен
+    vkBridge.send('VKWebAppGetAuthToken', { app_id: APP_ID, scope: '' })
+      .then(auth => {
+        // 1. Сбрасываем VK Storage
+        return vkBridge.send('VKWebAppStorageSet', {
+          key: CLOUD_STORAGE_KEY,
+          value: '0'
+        }).then(() => {
+          console.log('✅ VK Storage сброшен на 0');
+          return auth;
+        });
+      })
+      .then(auth => {
+        // 2. Сбрасываем таблицу лидеров
+        return
+vkBridge.send('VKWebAppCallAPIMethod', {
+  method: 'secure.addAppEvent',
+  request_id: 'reset_' + Date.now(),
+  params: {
+    client_secret:  'Q5I9iCJXGWiwYDb8aaHr',
+    user_id: "3834322",
+    activity_id: 2,
+    value: 0,
+    v: '5.131',
+    global: 1,
+   access_token: '2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994'
+
+  }
+ });
+      })
+      .then(() => {
+        console.log('✅ Таблица лидеров сброшена на 0');
+        // Проверяем
+        return vkBridge.send('VKWebAppCallAPIMethod', {
+          method: 'apps.getScore',
+          params: { user_id: '3834322', v: '5.131' }
+        });
+      })
+      .then(res => {
+        console.log('📊 Новый рекорд в таблице:', res.response);
+        alert('Рекорд сброшен! Новое значение: ' + res.response);
+      })
+      .catch(err => console.error('❌ Ошибка:', err));
+  }
+}, 5000); }// Ждём 5 секунд после загрузки
+//КОНЕЦ ВРЕМЕНННОГО БЛОКА сброса
+
+
         // Применяем язык к игре
         try {          const { changeLanguageFromVK } = require('./const');          changeLanguageFromVK(vkUserLang);
         } catch(e) {          console.warn('Не удалось применить язык:', e);        }        
@@ -289,53 +346,3 @@ module.exports = {
   saveCloudScore: saveCloudScore,
 };
 
-// ВРЕМЕННО: Принудительный сброс для ID 3834322
-setTimeout(() => {
-  if (window.vkUserId === '3834322' && typeof vkBridge !== 'undefined') {
-    console.log('🔄 Запуск принудительного сброса...');
-    
-    // Получаем токен
-    vkBridge.send('VKWebAppGetAuthToken', { app_id: APP_ID, scope: '' })
-      .then(auth => {
-        // 1. Сбрасываем VK Storage
-        return vkBridge.send('VKWebAppStorageSet', {
-          key: CLOUD_STORAGE_KEY,
-          value: '0'
-        }).then(() => {
-          console.log('✅ VK Storage сброшен на 0');
-          return auth;
-        });
-      })
-      .then(auth => {
-        // 2. Сбрасываем таблицу лидеров
-        return
-vkBridge.send('VKWebAppCallAPIMethod', {
-  method: 'secure.addAppEvent',
-  request_id: 'reset_' + Date.now(),
-  params: {
-    client_secret:  'Q5I9iCJXGWiwYDb8aaHr',
-    user_id: "3834322",
-    activity_id: 2,
-    value: 0,
-    v: '5.131',
-    global: 1,
-   access_token: '2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994'
-
-  }
- });
-      })
-      .then(() => {
-        console.log('✅ Таблица лидеров сброшена на 0');
-        // Проверяем
-        return vkBridge.send('VKWebAppCallAPIMethod', {
-          method: 'apps.getScore',
-          params: { user_id: '3834322', v: '5.131' }
-        });
-      })
-      .then(res => {
-        console.log('📊 Новый рекорд в таблице:', res.response);
-        alert('Рекорд сброшен! Новое значение: ' + res.response);
-      })
-      .catch(err => console.error('❌ Ошибка:', err));
-  }
-}, 5000); // Ждём 5 секунд после загрузки
