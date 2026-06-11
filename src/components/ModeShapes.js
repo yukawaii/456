@@ -4,25 +4,17 @@ export default class ModeShapes extends React.Component {
   constructor() {
     super();
     this.state = {
-      currentMode: 'tetra', // По умолчанию ТЕТРА
+      currentMode: 'tetra', // Всегда ТЕТРА при запуске
     };
   }
 
   componentDidMount() {
     console.log('ModeShapes mounted');
-    console.log('window.currentGameMode при монтировании:', window.currentGameMode);
     
-    // Проверяем localStorage
-    try {
-      const saved = localStorage.getItem('tetris_game_mode');
-      console.log('localStorage tetris_game_mode:', saved);
-    } catch(e) {}
-    
-    this.updateMode();
-    // Проверяем каждую секунду
+    // Запускаем проверку каждую секунду
     this.interval = setInterval(() => {
       this.updateMode();
-    }, 1000);
+    }, 500);
   }
 
   componentWillUnmount() {
@@ -32,25 +24,12 @@ export default class ModeShapes extends React.Component {
   }
 
   updateMode() {
-    let mode = window.currentGameMode;
-  //  console.log('updateMode: window.currentGameMode =', mode);
+    const mode = window.currentGameMode;
     
-    // Если глобальная переменная не установлена, читаем из localStorage
-    if (!mode) {
-      try {
-        mode = localStorage.getItem('tetris_game_mode');
-        console.log('updateMode: из localStorage =', mode);
-      } catch(e) {}
-    }
-    
-    // Если всё ещё нет - ставим ТЕТРА по умолчанию
-    if (!mode) {
-      mode = 'tetra';
-    }
-    
-    if (mode !== this.state.currentMode) {
-      console.log('Режим изменился с', this.state.currentMode, 'на', mode);
-      this.setState({ currentMode: mode === 'tetra' ? 'tetra' : 'classic' });
+    // Если есть новое значение от mode.js - обновляем
+    if (mode && mode !== this.state.currentMode) {
+      console.log('Режим изменился на:', mode);
+      this.setState({ currentMode: mode });
     }
   }
   
