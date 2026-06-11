@@ -122,6 +122,12 @@ function invite(data) {
     data,
   };
 }
+function mode(data) {
+  return {
+    type: reducerType.MODE,
+    data,
+  };
+}
 
 export default {
   nextBlock,
@@ -142,4 +148,5 @@ export default {
   focus,
   leaderboard, // Экспортируем его наружу
   invite,
+  mode,
 };

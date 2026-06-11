@@ -70,6 +70,14 @@ function invite(data) {
   };
 }
 
+// смена режимов
+function mode(data) {
+  return {
+    type: reducerType.KEY_MODE,
+    data,
+  };
+}
+
 export default {
   drop,
   down,
@@ -81,4 +89,5 @@ export default {
   pause,
   leaderboard, 
   invite,
+  mode, 
 };

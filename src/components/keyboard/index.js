@@ -69,6 +69,35 @@ const triggerLeaderboard = (score) => {
       triggerLeaderboard(this.props.max || 0);
     }, true);
   });
+  // ========== ДОБАВЛЯЕМ ОБРАБОТЧИК ДЛЯ КНОПКИ MODE ==========
+  if (this.dom_mode && this.dom_mode.dom) {
+    const modeKey = 'mode';
+    
+    this.dom_mode.dom.addEventListener('mousedown', (e) => {
+      if (todo[modeKey] && todo[modeKey].down) {
+        todo[modeKey].down(store);
+      }
+    }, true);
+    
+    this.dom_mode.dom.addEventListener('mouseup', (e) => {
+      if (todo[modeKey] && todo[modeKey].up) {
+        todo[modeKey].up(store);
+      }
+    }, true);
+    
+    this.dom_mode.dom.addEventListener('touchstart', (e) => {
+      if (todo[modeKey] && todo[modeKey].down) {
+        todo[modeKey].down(store);
+      }
+    }, true);
+    
+    this.dom_mode.dom.addEventListener('touchend', (e) => {
+      if (todo[modeKey] && todo[modeKey].up) {
+        todo[modeKey].up(store);
+      }
+    }, true);
+  }
+
 }
 
 
@@ -199,5 +228,5 @@ Keyboard.propTypes = {
   // Внутри Keyboard.propTypes внизу файла:
 invite: propTypes.bool,
   showLeaderboard: propTypes.func,
-
+ mode: propTypes.bool, 
 };

@@ -26,3 +26,4 @@ export const FOCUS = 'FOCUS';
 export const LEADERBOARD = 'LEADERBOARD';
 export const KEY_LEADERBOARD = 'KEY_LEADERBOARD';
 export const KEY_INVITE = 'KEY_INVITE';
+export const KEY_MODE = 'KEY_MODE'; //режимы

@@ -17,6 +17,7 @@ import keyboard from './keyboard';
 import focus from './focus';
 import leaderboard from './leaderboard'; // Импортируем наш новый редюсер
 import invite from './invite';
+import mode from './mode';
 
 
 const rootReducer = combineReducers({
@@ -38,6 +39,7 @@ const rootReducer = combineReducers({
   focus,
   leaderboard, 
   invite,
+  mode,
 });
 
 export default rootReducer;

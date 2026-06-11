@@ -1,20 +1,37 @@
-// src/control/todo/mode.js
+import event from '../../unit/event';
 import states from '../states';
+import actions from '../../actions';
 
-// Здесь будет логика при нажатии на кнопку
 const down = (store) => {
-  // Вызываем глобальную функцию, которую ты создал ранее в containers/index.js
-  if (typeof window.onModeToggle === 'function') {
-    window.onModeToggle();
-  }
+  store.dispatch(actions.keyboard.mode(true));
+  
+  event.down({
+    key: 'mode',
+    once: true,
+    callback: () => {
+      const state = store.getState();
+      
+      if (state.get('lock')) {
+        return;
+      }
+      
+      const cur = state.get('cur');
+      const isPause = state.get('pause');
+      
+      if (cur !== null && !isPause) {
+        states.pause(true);
+      }
+      
+      if (typeof window.showModeSelection === 'function') {
+        window.showModeSelection();
+      }
+    },
+  });
 };
 
-// Здесь логика при отпускании кнопки (обычно пустая для таких кнопок)
 const up = (store) => {
-  // Ничего не делаем
+  store.dispatch(actions.keyboard.mode(false));
+  event.up({ key: 'mode' });
 };
 
-export default {
-  down,
-  up,
-};
+export default { down, up };

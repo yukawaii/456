@@ -9,6 +9,7 @@ import music from './music';
 import pause from './pause';
 import leaderboard from './leaderboard'; // Импортируем наш редюсер кнопки
 import invite from './invite'; 
+import mode from './mode'; 
 
 const keyboardReducer = combineReducers({
   drop,
@@ -21,6 +22,7 @@ const keyboardReducer = combineReducers({
   pause,
   leaderboard, // Регистрируем её в Redux-состоянии клавиатуры
   invite,
+    mode,
 });
 
 export default keyboardReducer;
