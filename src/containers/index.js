@@ -19,9 +19,6 @@ import states from '../control/states';
 import { showFullscreenAd } from '../unit/yandexSdk';
 import { fetchYandexLeaderboard } from '../unit/yandexSdk';
 import { GAME_MODES, MODE_SHAPES, setGameMode, getCurrentMode } from '../unit/modes';
-{/*import Mode from '../components/mode';*/}
-
-
 
 class App extends React.Component {
   constructor() {
@@ -130,14 +127,7 @@ class App extends React.Component {
                   number={this.props.cur ? this.props.speedRun : this.props.speedStart}
                   length={1}
                 />
-{/*<Mode 
-    onSelect={(mode) => {
-      console.log('Режим:', mode);
-      if (this.props.pause) {
-        states.pause(false);
-      }
-    }}
-  />*/}
+
                 <p>{i18n.next[lan]}</p>
                 <Next data={this.props.next} />
                 <div className={style.bottom}>
