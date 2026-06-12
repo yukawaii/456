@@ -191,7 +191,7 @@ const states = {
             const maxRecord = store.getState().get('max') || 0;            
             // Выбираем, какое число больше — текущее или историческое
             const finalScore = Math.max(currentPoints, maxRecord);
-            console.log(`[VK Рекорд] Текущие очки: ${currentPoints}, Лучший рекорд: ${maxRecord}. Отправляем в ВК: ${finalScore}`);
+            console.log(`[VK Рекорд] Текущие очки: ${currentPoints}, Лучший рекорд: ${maxRecord}. Отправляем в функцию saveYandexscore: ${finalScore}`);
             if (typeof saveYandexScore === 'function') {
                 saveYandexScore(finalScore);
             }
