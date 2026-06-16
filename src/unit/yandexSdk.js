@@ -19,13 +19,13 @@ let ysdkInstance = null;
 export const setYsdk = (ysdk) => { ysdkInstance = ysdk; console.log('SDK готов'); };
 export const getYsdk = () => ysdkInstance;
 
-// Получение токена пользователя
-function getUserAccessToken() {  return vkBridge.send('VKWebAppGetAuthToken', {
-    app_id: APP_ID,    scope: ''  })
-  .then(data => {    console.log('[VK] Токен игрока получен');    vkUserToken = data.access_token;
-    return vkUserToken;  })
-  .catch(err => {    console.error('[VK] Ошибка получения токена:', err);
-    return null;  });
+// Получение токена пользователя (только для ВК)
+function getUserAccessToken() {  const platform = getPlatform();  
+  // Для Одноклассников токен не нужен
+  if (platform === 'ok') {    console.log('[OK] Токен не требуется для Одноклассников');    vkUserToken = null;    window.vkUserToken = null;    return Promise.resolve(null);  }
+    // Для ВК получаем токен
+  return vkBridge.send('VKWebAppGetAuthToken', {    app_id: APP_ID,    scope: ''  })  .then(data => {    console.log('[VK] Токен игрока получен');    vkUserToken = data.access_token;    window.vkUserToken = vkUserToken;
+    return vkUserToken;  })  .catch(err => {    console.error('[VK] Ошибка получения токена:', err);    vkUserToken = null;    window.vkUserToken = null;    return null;  });
 }
 
 // Определение платформы
@@ -109,6 +109,12 @@ export const initYandexSdk = () => {
         return getUserAccessToken();
       })
       .then(() => {
+        // Сохраняем в window для доступа из других мест (на всякий случай. Точно - хз зачем, но пусть будет)
+  window.vkUserToken = vkUserToken;
+  window.vkUserId = vkUserId;
+  window.vkUserIdForLeaderboard = vkUserIdForLeaderboard;
+  window.vkUserLang = vkUserLang;
+
         ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: vkUserLang };
         resolve(ysdkInstance);
       })
