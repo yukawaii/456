@@ -66,25 +66,56 @@ export const updateUserLanguage = () => {  if (typeof vkBridge === 'undefined') 
 };
 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
-export const initYandexSdk = () => {  return new Promise((resolve) => {    if (typeof vkBridge === 'undefined') {
-      console.warn('VK Bridge не обнаружен');      resolve(null);      return;    }    
-    vkBridge.send('VKWebAppInit')      .then(() => {        console.log('VK Bridge успешно инициализирован');
-        vkInitialized = true;     // Получаем единый ID и язык 
-        return Promise.all([          vkBridge.send('VKWebAppGetLaunchParams'),          vkBridge.send('VKWebAppGetUserInfo')        ]);      })
-      .then(([launchParams, userInfo]) => {        // Обновляем ID (приоритет у vk_original_vk_id для синхронизации)
-        vkUserId = launchParams.vk_original_vk_id || launchParams.vk_user_id || userInfo.id;   window.vkUserId = vkUserId;  
-        vkUserLang = launchParams.vk_language || userInfo.language || 'ru';        
-        console.log('[VK] Пользователь:', userInfo.first_name);        console.log('[VK] Единый ID для синхронизации:', vkUserId);   
-             console.log('[VK] Язык:', vkUserLang);  
+export const initYandexSdk = () => {
+  return new Promise((resolve) => {
+    // Если vkBridge не определён — просто выходим
+    if (typeof vkBridge === 'undefined') {
+      console.warn('VK Bridge не обнаружен');
+      resolve(null);
+      return;
+    }
+
+    // Единая инициализация для VK и OK
+    vkBridge.send('VKWebAppInit')
+      .then(() => {
+        console.log('VK Bridge успешно инициализирован');
+        vkInitialized = true;
+        // Получаем ID и язык пользователя
+        return Promise.all([
+          vkBridge.send('VKWebAppGetLaunchParams'),
+          vkBridge.send('VKWebAppGetUserInfo')
+        ]);
+      })
+      .then(([launchParams, userInfo]) => {
+        // ID берём из userInfo, а не из URL!
+        vkUserId = userInfo.id;
+        window.vkUserId = vkUserId;
+        vkUserLang = userInfo.language || 'ru';
+
+        console.log('[VK] Пользователь:', userInfo.first_name);
+        console.log('[VK] Единый ID для синхронизации:', vkUserId);
+        console.log('[VK] Язык:', vkUserLang);
+
         // Применяем язык к игре
-        try {          const { changeLanguageFromVK } = require('./const');          changeLanguageFromVK(vkUserLang);
-        } catch(e) {          console.warn('Не удалось применить язык:', e);        }        
+        try {
+          const { changeLanguageFromVK } = require('./const');
+          changeLanguageFromVK(vkUserLang);
+        } catch(e) {
+          console.warn('Не удалось применить язык:', e);
+        }
+
         // Получаем токен пользователя
         return getUserAccessToken();
-      })      .then(() => {        ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: vkUserLang };        resolve(ysdkInstance);
-      })      .catch((err) => {        console.error('Ошибка инициализации VK Bridge:', err);        resolve(null);      });  });
-
-
+      })
+      .then(() => {
+        ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: vkUserLang };
+        resolve(ysdkInstance);
+      })
+      .catch((err) => {
+        console.error('Ошибка инициализации VK Bridge:', err);
+        resolve(null);
+      });
+  });
 };
 
 // ===== ЗАГРУЗКА РЕКОРДА из облаков(единая для ВК и ОК) =====
