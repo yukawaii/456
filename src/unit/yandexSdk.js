@@ -68,43 +68,44 @@ export const updateUserLanguage = () => {  if (typeof vkBridge === 'undefined') 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
 export const initYandexSdk = () => {
   return new Promise((resolve) => {
-    // Если vkBridge не определён — просто выходим
     if (typeof vkBridge === 'undefined') {
       console.warn('VK Bridge не обнаружен');
       resolve(null);
       return;
     }
-
-    // Единая инициализация для VK и OK
     vkBridge.send('VKWebAppInit')
       .then(() => {
         console.log('VK Bridge успешно инициализирован');
         vkInitialized = true;
-        // Получаем ID и язык пользователя
-        return Promise.all([
-          vkBridge.send('VKWebAppGetLaunchParams'),
-          vkBridge.send('VKWebAppGetUserInfo')
-        ]);
+        return vkBridge.send('VKWebAppGetLaunchParams');
       })
-      .then(([launchParams, userInfo]) => {
-        // ID берём из userInfo, а не из URL!
-        vkUserId = userInfo.id;
+      .then((launchParams) => {
+        // Сохраняем оба ID
+        const vkOriginalId = launchParams.vk_original_vk_id || launchParams.vk_user_id || launchParams.vk_ok_user_id;
+        const vkUserIdRaw = launchParams.vk_user_id; // Оригинальный VK ID (может быть null в ОК)
+        
+        // Для синхронизации через Cloudflare используем универсальный ID
+        vkUserId = vkOriginalId;
         window.vkUserId = vkUserId;
-        vkUserLang = userInfo.language || 'ru';
-
-        console.log('[VK] Пользователь:', userInfo.first_name);
+        
+        // Для таблицы лидеров ВК сохраняем оригинальный VK ID (если есть)
+        window.vkUserIdForLeaderboard = vkUserIdRaw || vkOriginalId; // fallback
+        
+        // Язык
+        vkUserLang = launchParams.vk_language || launchParams.language || 'ru';
+        
         console.log('[VK] Единый ID для синхронизации:', vkUserId);
+        console.log('[VK] ID для таблицы лидеров:', window.vkUserIdForLeaderboard);
         console.log('[VK] Язык:', vkUserLang);
-
-        // Применяем язык к игре
+        
+        // Применяем язык
         try {
           const { changeLanguageFromVK } = require('./const');
           changeLanguageFromVK(vkUserLang);
         } catch(e) {
           console.warn('Не удалось применить язык:', e);
         }
-
-        // Получаем токен пользователя
+        
         return getUserAccessToken();
       })
       .then(() => {
@@ -119,69 +120,203 @@ export const initYandexSdk = () => {
 };
 
 // ===== ЗАГРУЗКА РЕКОРДА из облаков(единая для ВК и ОК) =====
-export const loadYandexHighScore = (storeInstance) => {  const platform = getPlatform();  
-  let localScore = 0;  let cloudflareScore = 0;  let vkStorageScore = 0;  let leaderboardScore = 0;  
+export const loadYandexHighScore = (storeInstance) => {
+  const platform = getPlatform();  
+  let localScore = 0;  
+  let cloudflareScore = 0;  
+  let vkStorageScore = 0;  
+  let leaderboardScore = 0;  
+  
   // 1. Читаем localStorage
-  try {    localScore = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
-    console.log('📀 localStorage рекорд:', localScore);  } catch(e) {}  
+  try {
+    localScore = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
+    console.log('📀 localStorage рекорд:', localScore);
+  } catch(e) {}
+
+  // Счетчик задач, которые должны завершиться
+  let tasksToWait = 0;  
+  
   // Функция для финальной синхронизации после загрузки всех данных
-  const finalizeAndSync = () => {    const maxScore = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
+  const finalizeAndSync = () => {
+    const maxScore = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);  
     console.log('🏆 ИТОГОВЫЙ МАКСИМАЛЬНЫЙ РЕКОРД:', maxScore);    
+    
     // Обновляем store
-    let currentMax = 0;    try {
-      currentMax = storeInstance.getState().get('max') || 0;    } catch(e) {}    
-    if (maxScore > currentMax) {      storeInstance.dispatch(actions.max(maxScore));      localStorage.setItem('tetris_high_score', maxScore);    }    
+    let currentMax = 0;
+    try {
+      currentMax = storeInstance.getState().get('max') || 0;
+    } catch(e) {}    
+    
+    if (maxScore > currentMax) {
+      storeInstance.dispatch(actions.max(maxScore));
+      localStorage.setItem('tetris_high_score', maxScore);
+    }    
+    
     // Синхронизация (если нужно)
-    if (maxScore > 0) {      if (window.vkUserId && maxScore > cloudflareScore) {        saveCloudScore(window.vkUserId, maxScore);      }
-      if (typeof vkBridge !== 'undefined' && maxScore > vkStorageScore) {
-        vkBridge.send('VKWebAppStorageSet', {          key: CLOUD_STORAGE_KEY,          value: String(maxScore)        });      }
-      if (platform === 'vk' && vkInitialized && vkUserId && vkUserToken && maxScore > leaderboardScore) {
-        vkBridge.send('VKWebAppCallAPIMethod', {          method: 'secure.addAppEvent',
+    if (maxScore > 0) {
+      // Cloudflare
+      if (window.vkUserId && maxScore > cloudflareScore) {
+        saveCloudScore(window.vkUserId, maxScore);
+      }
+      
+      // VK Storage - только для VK!
+      if (platform === 'vk' && typeof vkBridge !== 'undefined' && maxScore > vkStorageScore) {
+        vkBridge.send('VKWebAppStorageSet', {
+          key: CLOUD_STORAGE_KEY,
+          value: String(maxScore)
+        });
+      }
+      
+      // Таблица лидеров ВК - только для VK, используем правильный ID!
+      if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken && maxScore > leaderboardScore) {
+        vkBridge.send('VKWebAppCallAPIMethod', {
+          method: 'secure.addAppEvent',
           request_id: 'syncScore_' + Date.now(),
-          params: {            client_secret: 'Q5I9iCJXGWiwYDb8aaHr',            user_id: vkUserId,
-            activity_id: 2,            value: maxScore,            v: '5.131',            global: 1,            access_token: ACCESS_TOKEN          }        });      }    }  };  
+          params: {
+            client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
+            user_id: window.vkUserIdForLeaderboard, // ← ИСПРАВЛЕНО!
+            activity_id: 2,
+            value: maxScore,
+            v: '5.131',
+            global: 1,
+            access_token: ACCESS_TOKEN
+          }
+        });
+      }
+    }
+  };
+
+  const checkAndFinalize = () => {
+    tasksToWait--;
+    if (tasksToWait === 0) {
+      finalizeAndSync();
+    }
+  };
+
   // 2. Загружаем из Cloudflare
-  let tasksToWait = 1; // хотя бы одна задача завершится (Cloudflare)  
-  if (window.vkUserId) {    loadCloudScore(window.vkUserId).then(score => {      cloudflareScore = score;      console.log('☁️ Cloudflare рекорд:', cloudflareScore);
-      tasksToWait--;      if (tasksToWait === 0) finalizeAndSync();    });  } else {    tasksToWait--;  }  
-  // 3. Загружаем из VK Storage
-  if (typeof vkBridge !== 'undefined') {    tasksToWait++;    vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
-      .then(data => {        if (data.keys && data.keys[0] && data.keys[0].value) {          vkStorageScore = parseInt(data.keys[0].value, 10) || 0;        }
-        console.log('💾 VK Storage рекорд:', vkStorageScore);        tasksToWait--;
-        if (tasksToWait === 0) finalizeAndSync();      })      .catch(err => {        console.warn('Ошибка VK Storage:', err);        tasksToWait--;
-        if (tasksToWait === 0) finalizeAndSync();      });  }  
-  // 4. Загружаем из таблицы лидеров ВК
-  if (platform === 'vk' && vkInitialized && vkUserId && vkUserToken) {    tasksToWait++;
-    vkBridge.send('VKWebAppCallAPIMethod', {      method: 'apps.getScore',
-      request_id: 'checkScore_' + Date.now(),      params: {        user_id: vkUserId,        v: '5.131',        access_token: vkUserToken      }    })
-    .then(data => {      leaderboardScore = parseInt(data.response) || 0;      console.log('🏆 Таблица лидеров ВК рекорд:', leaderboardScore);
-      tasksToWait--;      if (tasksToWait === 0) finalizeAndSync();    })    .catch(err => {      console.warn('Ошибка таблицы лидеров:', err);
-      tasksToWait--;      if (tasksToWait === 0) finalizeAndSync();    }); }    // Если нечего ждать — сразу финализируем
-  if (tasksToWait === 0) finalizeAndSync();
+  if (window.vkUserId) {
+    tasksToWait++;
+    loadCloudScore(window.vkUserId).then(score => {
+      cloudflareScore = score;
+      console.log('☁️ Cloudflare рекорд:', cloudflareScore);
+      checkAndFinalize();
+    });
+  }
+
+  // 3. Загружаем из VK Storage - только для VK
+  if (platform === 'vk' && typeof vkBridge !== 'undefined') {
+    tasksToWait++;
+    vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
+      .then(data => {
+        if (data.keys && data.keys[0] && data.keys[0].value) {
+          vkStorageScore = parseInt(data.keys[0].value, 10) || 0;
+        }
+        console.log('💾 VK Storage рекорд:', vkStorageScore);
+        checkAndFinalize();
+      })
+      .catch(err => {
+        console.warn('Ошибка VK Storage:', err);
+        checkAndFinalize();
+      });
+  }
+
+  // 4. Загружаем из таблицы лидеров ВК - только для VK
+  if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken) {
+    tasksToWait++;
+    vkBridge.send('VKWebAppCallAPIMethod', {
+      method: 'apps.getScore',
+      request_id: 'checkScore_' + Date.now(),
+      params: {
+        user_id: window.vkUserIdForLeaderboard, // ← ИСПРАВЛЕНО!
+        v: '5.131',
+        access_token: vkUserToken
+      }
+    })
+    .then(data => {
+      leaderboardScore = parseInt(data.response) || 0;
+      console.log('🏆 Таблица лидеров ВК рекорд:', leaderboardScore);
+      checkAndFinalize();
+    })
+    .catch(err => {
+      console.warn('Ошибка таблицы лидеров:', err);
+      checkAndFinalize();
+    });
+  }
+
+  // Если нечего ждать — сразу финализируем
+  if (tasksToWait === 0) {
+    finalizeAndSync();
+  }
 };
+
 
 
 // ===== СОХРАНЕНИЕ РЕКОРДА в облака (единая для ВК и ОК) =====
-export const saveYandexScore = (scoreValue) => {  const currentScore = parseInt(scoreValue, 10) || 0;  if (currentScore <= 0) return;  
+export const saveYandexScore = (scoreValue) => {
+  const currentScore = parseInt(scoreValue, 10) || 0;
+  if (currentScore <= 0) return;
+
   // 1. Проверяем локальный рекорд
-  let localMax = 0;  try {    localMax = store.getState().get('max') || 0;  } catch(e) {}  
-  if (currentScore <= localMax) {    console.log(`📀 Рекорд не побит (локально): ${currentScore} <= ${localMax}`);    return;  }  
+  let localMax = 0;
+  try {
+    localMax = store.getState().get('max') || 0;
+  } catch(e) {}
+
+  if (currentScore <= localMax) {
+    console.log(`📀 Рекорд не побит (локально): ${currentScore} <= ${localMax}`);
+    return;
+  }
+
   // 2. Сохраняем локально
-  localStorage.setItem('tetris_high_score', currentScore);  store.dispatch(actions.max(currentScore));  console.log(`📀 Рекорд сохранён в localStorage:`, currentScore);    const platform = getPlatform();  
-  // 3. Сохраняем в Cloudflare
-  if (window.vkUserId && currentScore > 0) {    saveCloudScore(window.vkUserId, currentScore);  }  
-  // 4. Сохраняем в VK Storage (принудительно)
-  if (typeof vkBridge !== 'undefined') {    vkBridge.send('VKWebAppStorageSet', {      key: CLOUD_STORAGE_KEY,
-      value: String(currentScore)    })    .then(() => console.log(`💾 VK Storage: рекорд ${currentScore} сохранён`))
-    .catch(err => console.error('❌ Ошибка сохранения в VK Storage:', err));  }  
+  localStorage.setItem('tetris_high_score', currentScore);
+  store.dispatch(actions.max(currentScore));
+  console.log(`📀 Рекорд сохранён в localStorage:`, currentScore);
+
+  const platform = getPlatform();
+
+  // 3. Сохраняем в Cloudflare (используем Promise без async/await)
+  if (window.vkUserId && currentScore > 0) {
+    saveCloudScore(window.vkUserId, currentScore)
+      .then(() => {
+        console.log(`☁️ Cloudflare: рекорд ${currentScore} сохранён`);
+      })
+      .catch(err => {
+        console.error('❌ Ошибка сохранения в Cloudflare:', err);
+      });
+  }
+
+  // 4. Сохраняем в VK Storage (только для VK)
+  if (platform === 'vk' && typeof vkBridge !== 'undefined') {
+    vkBridge.send('VKWebAppStorageSet', {
+      key: CLOUD_STORAGE_KEY,
+      value: String(currentScore)
+    })
+    .then(() => console.log(`💾 VK Storage: рекорд ${currentScore} сохранён`))
+    .catch(err => console.error('❌ Ошибка сохранения в VK Storage:', err));
+  }
+
   // 5. Для ВК: обновляем таблицу лидеров
-  if (platform === 'vk' && vkInitialized && vkUserId && vkUserToken) {
-    vkBridge.send('VKWebAppCallAPIMethod', {      method: 'secure.addAppEvent',
-      request_id: 'addScore_' + Date.now(),      params: {        client_secret: 'Q5I9iCJXGWiwYDb8aaHr',        user_id: vkUserId,        activity_id: 2,
-        value: currentScore,        v: '5.131',        global: 1,        access_token: ACCESS_TOKEN      }    })
-    .then(() => console.log(`🏆 Таблица лидеров ВК: рекорд ${currentScore} отправлен!`))    .catch(err => console.error('❌ Ошибка отправки в таблицу лидеров:', err));  }  
+  if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken) {
+    vkBridge.send('VKWebAppCallAPIMethod', {
+      method: 'secure.addAppEvent',
+      request_id: 'addScore_' + Date.now(),
+      params: {
+        client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
+        user_id: window.vkUserIdForLeaderboard,
+        activity_id: 2,
+        value: currentScore,
+        v: '5.131',
+        global: 1,
+        access_token: ACCESS_TOKEN
+      }
+    })
+    .then(() => console.log(`🏆 Таблица лидеров ВК: рекорд ${currentScore} отправлен!`))
+    .catch(err => console.error('❌ Ошибка отправки в таблицу лидеров:', err));
+  }
+
   console.log(`✅ Рекорд ${currentScore} успешно сохранён!`);
 };
+
 
 // ===== ЛИДЕРБОРД (ДЛЯ ВК — ТАБЛИЦА, ДЛЯ ОК — alert) =====
 export const fetchYandexLeaderboard = () => {  return new Promise((resolve) => {    const platform = getPlatform();    
