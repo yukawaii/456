@@ -181,7 +181,7 @@ export const loadYandexHighScore = (storeInstance) => {
           params: {
             client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
             user_id: window.vkUserIdForLeaderboard, // ← ИСПРАВЛЕНО!
-            activity_id: 2,
+            activity_id: 1,
             value: maxScore,
             v: '5.131',
             global: 1,
@@ -309,7 +309,7 @@ export const saveYandexScore = (scoreValue) => {
       params: {
         client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
         user_id: window.vkUserIdForLeaderboard,
-        activity_id: 2,
+        activity_id: 1,
         value: currentScore,
         v: '5.131',
         global: 1,
