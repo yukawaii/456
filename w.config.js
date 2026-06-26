@@ -7,6 +7,50 @@ var autoprefixer = require('autoprefixer');
 var CopyWebpackPlugin = require('copy-webpack-plugin');
 var version = require('./package.json').version;
 
+// ===== НОВАЯ СЕКЦИЯ: Настройки разрешения модулей =====
+var resolve = {
+  // Расширения файлов, которые Webpack будет обрабатывать
+  extensions: ['', '.js', '.jsx', '.json'],
+  
+  // Алиасы для упрощения импортов
+  alias: {
+    // Указываем Webpack, где искать VK Bridge
+    '@vkontakte/vk-bridge': __dirname + '/node_modules/@vkontakte/vk-bridge/dist/index.js'
+  }
+};
+
+// ===== НОВАЯ СЕКЦИЯ: Добавляем загрузчик для VK Bridge =====
+// Добавляем новый загрузчик в массив loaders
+var loaders = [
+    {
+      test: /\.(json)$/,
+      exclude: /node_modules/,
+      loader: 'json',
+    },
+    {
+      test: /\.(js|jsx)$/,
+      exclude: /node_modules/,
+      loader: 'babel!eslint-loader',
+    },
+    // НОВЫЙ ЗАГРУЗЧИК: Для VK Bridge
+    {
+      test: /\.js$/,
+      include: /node_modules\/@vkontakte\/vk-bridge/,
+      loader: 'babel',
+      query: {
+        presets: ['es2015']
+      }
+    },
+    {
+      test: /\.(?:png|jpg|gif)$/,
+      loader: 'url?limit=8192',
+    },
+    {
+      test: /\.less/,
+      loader: ExtractTextPlugin.extract('style', 'css?modules&localIdentName=[hash:base64:4]!postcss!less'),
+    }
+];
+
 
 // 程序入口
 var entry =  __dirname + '/src/index.js';
@@ -107,6 +151,7 @@ var devServer = {
 };
 
 module.exports = {
+   resolve: resolve,
   entry: entry,
   devtool: devtool,
   output: output,

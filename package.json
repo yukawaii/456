@@ -7,7 +7,6 @@
     "build": "set NODE_OPTIONS=--openssl-legacy-provider && node -e \"const config = require('./webpack.production.config.js'); if (config.module && config.module.loaders) { config.module.loaders = config.module.loaders.filter(l => l && l.loader !== 'eslint'); } if (config.plugins) { config.plugins = config.plugins.filter(p => p && p.constructor && !p.constructor.name.includes('SourceMap') && !p.constructor.name.includes('Eslint')); } config.devtool = 'source-map'; require('webpack')(config, (err, stats) => { if (err) { console.error(err); process.exit(1); } console.log('✅ ПОБЕДА! Сборка под ВК успешно завершена в папку docs/!'); });\"",
     "predeploy": "npm run build",
     "deploy": "vk-miniapps-deploy"
- 
   },
   "keywords": [
     "blocks",
@@ -18,8 +17,7 @@
     "тетрис",
     "Immutable",
     "俄罗斯方块"
-  ], 
-
+  ],
   "homepage": ".",
   "devDependencies": {
     "autoprefixer": "^6.7.2",
