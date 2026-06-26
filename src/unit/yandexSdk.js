@@ -498,7 +498,44 @@ export const saveCloudScore = (userId, score) => {
   });
 };
 
-
+// ===== СБРОС РЕКОРДА В ТАБЛИЦЕ ЛИДЕРОВ ВК (ТОЛЬКО ДЛЯ ТЕБЯ) =====
+export const resetMyLeaderboardScore = () => {
+  console.log('🔄 Попытка сброса рекорда в таблице лидеров...');
+  
+  vkBridge.send('VKWebAppCallAPIMethod', {
+    method: 'secure.addAppEvent',
+    request_id: 'reset_' + Date.now(),
+    params: {
+      client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
+      user_id: 3834322,
+      activity_id: 2,
+      value: 0,
+      v: '5.131',
+      global: 1,
+      access_token: '2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994'
+    }
+  })
+  .then(() => {
+    console.log('✅ Таблица лидеров сброшена на 0');
+    // Проверяем
+    return vkBridge.send('VKWebAppCallAPIMethod', {
+      method: 'apps.getScore',
+      request_id: 'check_' + Date.now(),
+      params: {
+        user_id: 3834322,
+        v: '5.131',
+        access_token: '2238166b2238166b2238166b2021797986222382238166b4826d211f79d2796efcd8994'
+      }
+    });
+  })
+  .then(data => {
+    console.log('🏆 Проверка таблицы лидеров после сброса:', data.response);
+  })
+  .catch(err => {
+    console.error('❌ Ошибка сброса таблицы лидеров:', err);
+    console.log('ℹ️ Возможно, приложение не верифицировано. Тогда нужно побить рекорд 1444 в игре.');
+  });
+};
 
 // Алиасы для совместимости с index.js
 export const getPlatformScore = loadYandexHighScore;

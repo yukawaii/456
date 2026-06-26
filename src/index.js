@@ -48,6 +48,10 @@ if (typeof vkBridge !== 'undefined') {
 
 window.openLeaderboard = fetchYandexLeaderboard;
 
+window.store = store;
+window.actions = actions; // тоже пригодится
+console.log('✅ store сохранен в window для отладки');
+
 // Начальная реклама и Запуск React
 //showFullscreenAd(() => {
   render(
