@@ -32,7 +32,8 @@ if (typeof vkBridge !== 'undefined') {
    console.log('🔥 vkBridge найден, вызываем initYandexSdk...'); 
   initYandexSdk().then(() => {
       console.log('🔥 initYandexSdk завершен! вызов loadYandexHighScore, subscribeRecord ');
-    loadYandexHighScore(store);    subscribeRecord(store);
+    loadYandexHighScore(store);  
+      subscribeRecord(store);
     // Показать баннер только после инициализации VK
   if (typeof showBannerAd === 'function') {
     showBannerAd();

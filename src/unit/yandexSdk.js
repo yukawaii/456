@@ -198,10 +198,14 @@ export const loadYandexHighScore = (storeInstance) => {
       currentMax = storeInstance.getState().get('max') || 0;
     } catch(e) {}    
     
-    if (maxScore > currentMax) {
-      storeInstance.dispatch(actions.max(maxScore));
-      localStorage.setItem('tetris_high_score', maxScore);
-    }    
+if (maxScore > currentMax) {
+  storeInstance.dispatch(actions.max(maxScore));
+  
+  // ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ
+  localStorage.setItem('tetris_high_score', maxScore);
+  localStorage.setItem('vk_user_id', window.vkUserId || '');
+  console.log('✅ Рекорд принудительно сохранен в localStorage:', maxScore);
+}  
     
     // Синхронизация (если нужно)
     if (maxScore > 0) {
@@ -493,7 +497,14 @@ export const getPlatformScore = loadYandexHighScore;
 export const sendPlatformScore = saveYandexScore;
 export const showPlatformLeaderboard = fetchYandexLeaderboard;
 export const showPlatformAd = showFullscreenAd;
-
+// ===== ДЛЯ ОТЛАДКИ (сохраняем в window) =====
+if (typeof window !== 'undefined') {
+  window.initYandexSdk = initYandexSdk;
+  window.loadYandexHighScore = loadYandexHighScore;
+  window.saveYandexScore = saveYandexScore;
+  window.vkBridge = vkBridge;
+  console.log('✅ Функции сохранены в window для отладки');
+}
 
 // ===== ЭКСПОРТ ДЛЯ COMMONJS (WEBPACK 1) =====
 module.exports = {
