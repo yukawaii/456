@@ -198,14 +198,33 @@ export const updateUserLanguage = () => {  if (typeof vkBridge === 'undefined') 
 // ===== ЗАГРУЗКА РЕКОРДА из облаков(единая для ВК и ОК) =====
 // ===== ЗАГРУЗКА РЕКОРДА из облаков (единая для ВК и ОК) =====
 export const loadYandexHighScore = (storeInstance) => {
-    console.log('🔥 loadYandexHighScore ВЫЗВАН!');
+    // Функция для сохранения логов в localStorage
+    const saveLog = (message, data) => {
+        const logs = JSON.parse(localStorage.getItem('vk_debug_logs') || '[]');
+        logs.push({
+            time: new Date().toISOString(),
+            message: message,
+            data: data || null
+        });
+        // Храним последние 50 логов
+        if (logs.length > 50) logs.shift();
+        localStorage.setItem('vk_debug_logs', JSON.stringify(logs));
+        console.log(message, data || '');
+    };
+    
+    saveLog('🔥 loadYandexHighScore ВЫЗВАН!');
+    saveLog('📱 Платформа:', getPlatform());
+    
     const platform = getPlatform();
     
     // === ШАГ 1: Получаем ID пользователя ===
     let userIdForVK = window.vkUserIdForLeaderboard || window.vkUserId;
     
+    saveLog('🔍 ID пользователя:', userIdForVK);
+    saveLog('  window.vkUserIdForLeaderboard:', window.vkUserIdForLeaderboard);
+    saveLog('  window.vkUserId:', window.vkUserId);
+    
     if (!userIdForVK) {
-        // Пытаемся восстановить ID из URL
         const urlParams = new URLSearchParams(window.location.search);
         userIdForVK = urlParams.get('vk_user_id') || 
                        urlParams.get('vk_original_vk_id') || 
@@ -213,15 +232,13 @@ export const loadYandexHighScore = (storeInstance) => {
                        localStorage.getItem('vk_user_id');
         
         if (userIdForVK) {
-            console.log('[loadYandexHighScore] ID восстановлен из URL/localStorage:', userIdForVK);
+            saveLog('✅ ID восстановлен:', userIdForVK);
             window.vkUserId = userIdForVK;
             if (!window.vkUserIdForLeaderboard) window.vkUserIdForLeaderboard = userIdForVK;
         } else {
-            console.warn('[loadYandexHighScore] ⚠️ НЕ НАЙДЕН ID пользователя!');
+            saveLog('⚠️ НЕ НАЙДЕН ID!', window.location.search);
         }
     }
-    
-    console.log('[loadYandexHighScore] ID для VK операций:', userIdForVK);
     
     // === ШАГ 2: Читаем локальный рекорд ===
     let localScore = 0;
@@ -236,9 +253,9 @@ export const loadYandexHighScore = (storeInstance) => {
             localScore = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
         } catch(e2) {}
     }
-    console.log('📀 localStorage рекорд:', localScore);
+    saveLog('📀 localStorage рекорд:', localScore);
     
-    // === ШАГ 3: Переменные для хранения рекордов из разных источников ===
+    // === ШАГ 3: Переменные для хранения рекордов ===
     let cloudflareScore = 0;
     let vkStorageScore = 0;
     let leaderboardScore = 0;
@@ -246,33 +263,70 @@ export const loadYandexHighScore = (storeInstance) => {
     
     // === ШАГ 4: Функция финальной синхронизации ===
     const finalizeAndSync = function() {
-        // Находим абсолютный максимум
-        const absoluteMax = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
-        console.log('🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
-        console.log('📊 Сравнение:', { localScore, cloudflareScore, vkStorageScore, leaderboardScore });
+        saveLog('🔥 FINALIZE_AND_SYNC');
+        saveLog('  localScore:', localScore);
+        saveLog('  cloudflareScore:', cloudflareScore);
+        saveLog('  vkStorageScore:', vkStorageScore);
+        saveLog('  leaderboardScore:', leaderboardScore);
         
-        // === Принудительная синхронизация для телефона ===
+        const absoluteMax = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
+        saveLog('🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
+        
+        // === ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ для телефона ===
         if (platform === 'vk' && typeof vkBridge !== 'undefined' && userIdForVK) {
-            // Если VK Storage меньше Cloudflare — обновляем
+            // КРИТИЧНО: Если VK Storage пуст, но есть рекорд - сохраняем!
+            if (vkStorageScore === 0 && (cloudflareScore > 0 || localScore > 0)) {
+                const maxScore = Math.max(cloudflareScore, localScore);
+                saveLog('⚠️ VK Storage = 0! Принудительно сохраняем:', maxScore);
+                
+                // Пробуем разные способы сохранения
+                try {
+                    // Способ 1: Стандартный
+                    vkBridge.send('VKWebAppStorageSet', {
+                        key: CLOUD_STORAGE_KEY,
+                        value: String(maxScore)
+                    })
+                    .then(() => saveLog('✅ VK Storage принудительно сохранён (способ 1)'))
+                    .catch(err => saveLog('❌ Ошибка способ 1:', err));
+                } catch(e) {
+                    saveLog('❌ Исключение способ 1:', e);
+                }
+                
+                // Способ 2: С явным user_id
+                try {
+                    vkBridge.send('VKWebAppStorageSet', {
+                        key: CLOUD_STORAGE_KEY,
+                        value: String(maxScore),
+                        user_id: userIdForVK
+                    })
+                    .then(() => saveLog('✅ VK Storage принудительно сохранён (способ 2)'))
+                    .catch(err => saveLog('❌ Ошибка способ 2:', err));
+                } catch(e) {
+                    saveLog('❌ Исключение способ 2:', e);
+                }
+            }
+            
+            // Обычная синхронизация
             if (vkStorageScore < cloudflareScore && cloudflareScore > 0) {
                 vkBridge.send('VKWebAppStorageSet', {
                     key: CLOUD_STORAGE_KEY,
                     value: String(cloudflareScore)
-                }).catch(err => console.warn('❌ Ошибка VK Storage (Cloudflare):', err));
-                console.log('🔄 VK Storage обновлён из Cloudflare:', cloudflareScore);
+                })
+                .then(() => saveLog('✅ VK Storage обновлён из Cloudflare'))
+                .catch(err => saveLog('❌ Ошибка VK Storage (Cloudflare):', err));
             }
             
-            // Если VK Storage меньше локального рекорда — обновляем
             if (vkStorageScore < localScore && localScore > 0) {
                 vkBridge.send('VKWebAppStorageSet', {
                     key: CLOUD_STORAGE_KEY,
                     value: String(localScore)
-                }).catch(err => console.warn('❌ Ошибка VK Storage (local):', err));
-                console.log('🔄 VK Storage обновлён из localStorage:', localScore);
+                })
+                .then(() => saveLog('✅ VK Storage обновлён из localStorage'))
+                .catch(err => saveLog('❌ Ошибка VK Storage (local):', err));
             }
         }
         
-        // === Обновляем store и localStorage ===
+        // === Обновляем store ===
         let currentMax = 0;
         try {
             currentMax = storeInstance.getState().get('max') || 0;
@@ -284,28 +338,26 @@ export const loadYandexHighScore = (storeInstance) => {
             if (window.vkUserId) {
                 localStorage.setItem('vk_user_id', window.vkUserId);
             }
-            console.log('✅ Рекорд обновлён в store и localStorage:', absoluteMax);
+            saveLog('✅ Рекорд обновлён в store:', absoluteMax);
         }
         
-        // === Отправка рекорда во все облачные хранилища ===
+        // === Сохраняем во все облака ===
         if (absoluteMax > 0) {
-            // 1. Cloudflare (для ОК и резерва)
             if (window.vkUserId && absoluteMax > cloudflareScore) {
                 saveCloudScore(window.vkUserId, absoluteMax)
-                    .then(() => console.log('☁️ Cloudflare сохранён:', absoluteMax))
-                    .catch(err => console.warn('❌ Ошибка Cloudflare:', err));
+                    .then(() => saveLog('☁️ Cloudflare сохранён:', absoluteMax))
+                    .catch(err => saveLog('❌ Ошибка Cloudflare:', err));
             }
             
-            // 2. VK Storage (только для VK)
             if (platform === 'vk' && typeof vkBridge !== 'undefined' && userIdForVK && absoluteMax > vkStorageScore) {
                 vkBridge.send('VKWebAppStorageSet', {
                     key: CLOUD_STORAGE_KEY,
                     value: String(absoluteMax)
-                }).catch(err => console.warn('❌ Ошибка VK Storage (sync):', err));
-                console.log('💾 VK Storage синхронизирован:', absoluteMax);
+                })
+                .then(() => saveLog('✅ VK Storage синхронизирован:', absoluteMax))
+                .catch(err => saveLog('❌ Ошибка VK Storage (sync):', err));
             }
             
-            // 3. Таблица лидеров ВК (только для VK)
             if (platform === 'vk' && vkInitialized && userIdForVK && vkUserToken && absoluteMax > leaderboardScore) {
                 vkBridge.send('VKWebAppCallAPIMethod', {
                     method: 'secure.addAppEvent',
@@ -319,8 +371,9 @@ export const loadYandexHighScore = (storeInstance) => {
                         global: 1,
                         access_token: ACCESS_TOKEN
                     }
-                }).catch(err => console.warn('❌ Ошибка таблицы лидеров:', err));
-                console.log('🏆 Таблица лидеров обновлена:', absoluteMax);
+                })
+                .then(() => saveLog('✅ Таблица лидеров обновлена'))
+                .catch(err => saveLog('❌ Ошибка таблицы лидеров:', err));
             }
         }
     };
@@ -328,8 +381,9 @@ export const loadYandexHighScore = (storeInstance) => {
     // === ШАГ 5: Функция проверки готовности ===
     const checkAndFinalize = () => {
         tasksToWait--;
-        console.log(`⏳ Осталось задач: ${tasksToWait}`);
+        saveLog(`⏳ Осталось задач: ${tasksToWait}`);
         if (tasksToWait === 0) {
+            saveLog('✅ Все задачи загружены');
             finalizeAndSync();
         }
     };
@@ -337,43 +391,98 @@ export const loadYandexHighScore = (storeInstance) => {
     // === ШАГ 6: Загружаем из Cloudflare ===
     if (window.vkUserId) {
         tasksToWait++;
+        saveLog('☁️ Загружаем из Cloudflare...');
         loadCloudScore(window.vkUserId)
             .then(score => {
                 cloudflareScore = score;
-                console.log('☁️ Cloudflare рекорд:', cloudflareScore);
+                saveLog('☁️ Cloudflare рекорд:', cloudflareScore);
                 checkAndFinalize();
             })
             .catch(() => {
-                console.warn('⚠️ Ошибка загрузки Cloudflare');
+                saveLog('⚠️ Ошибка Cloudflare');
                 checkAndFinalize();
             });
-    } else {
-        console.warn('⚠️ Cloudflare пропущен (нет ID)');
     }
     
-    // === ШАГ 7: Загружаем из VK Storage (только для VK) ===
+    // === ШАГ 7: Загружаем из VK Storage (ОСНОВНАЯ ПРОБЛЕМА) ===
+    saveLog('🔍 ШАГ 7: Проверка VK Storage');
+    saveLog('  platform === "vk"?', platform === 'vk');
+    saveLog('  typeof vkBridge:', typeof vkBridge);
+    saveLog('  userIdForVK:', userIdForVK);
+    
     if (platform === 'vk' && typeof vkBridge !== 'undefined' && userIdForVK) {
         tasksToWait++;
+        saveLog('💾 Загружаем из VK Storage...');
+        
+        // Пробуем СПОСОБ 1: Стандартный запрос
         vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
             .then(data => {
-                if (data.keys && data.keys[0] && data.keys[0].value) {
+                saveLog('💾 Ответ VK Storage (способ 1):', data);
+                if (data && data.keys && data.keys[0] && data.keys[0].value) {
                     vkStorageScore = parseInt(data.keys[0].value, 10) || 0;
+                    saveLog('💾 VK Storage рекорд (способ 1):', vkStorageScore);
+                } else {
+                    saveLog('⚠️ VK Storage вернул пустой ответ (способ 1)');
+                    vkStorageScore = 0;
+                    
+                    // Пробуем СПОСОБ 2: С явным user_id
+                    saveLog('💾 Пробуем способ 2 (с user_id)...');
+                    vkBridge.send('VKWebAppStorageGet', { 
+                        keys: [CLOUD_STORAGE_KEY],
+                        user_id: userIdForVK
+                    })
+                    .then(data2 => {
+                        saveLog('💾 Ответ VK Storage (способ 2):', data2);
+                        if (data2 && data2.keys && data2.keys[0] && data2.keys[0].value) {
+                            vkStorageScore = parseInt(data2.keys[0].value, 10) || 0;
+                            saveLog('💾 VK Storage рекорд (способ 2):', vkStorageScore);
+                        } else {
+                            saveLog('⚠️ VK Storage пуст (способ 2)');
+                        }
+                        checkAndFinalize();
+                    })
+                    .catch(err2 => {
+                        saveLog('❌ Ошибка VK Storage (способ 2):', err2);
+                        checkAndFinalize();
+                    });
+                    return; // Не вызываем checkAndFinalize дважды
                 }
-                console.log('💾 VK Storage рекорд:', vkStorageScore);
                 checkAndFinalize();
             })
             .catch(err => {
-                console.warn('⚠️ Ошибка VK Storage:', err);
-                checkAndFinalize();
+                saveLog('❌ Ошибка VK Storage (способ 1):', err);
+                
+                // Пробуем СПОСОБ 2: С явным user_id
+                saveLog('💾 Пробуем способ 2 (после ошибки способа 1)...');
+                vkBridge.send('VKWebAppStorageGet', { 
+                    keys: [CLOUD_STORAGE_KEY],
+                    user_id: userIdForVK
+                })
+                .then(data2 => {
+                    saveLog('💾 Ответ VK Storage (способ 2):', data2);
+                    if (data2 && data2.keys && data2.keys[0] && data2.keys[0].value) {
+                        vkStorageScore = parseInt(data2.keys[0].value, 10) || 0;
+                        saveLog('💾 VK Storage рекорд (способ 2):', vkStorageScore);
+                    } else {
+                        saveLog('⚠️ VK Storage пуст (способ 2)');
+                    }
+                    checkAndFinalize();
+                })
+                .catch(err2 => {
+                    saveLog('❌ Ошибка VK Storage (способ 2):', err2);
+                    checkAndFinalize();
+                });
             });
     } else {
-        console.log('⚠️ VK Storage пропущен (не VK или нет ID)');
-        // Если не VK, то считаем задачу выполненной
+        saveLog('⚠️ VK Storage пропущен');
+        // Если не VK, то финализируем без VK Storage
+        // checkAndFinalize() будет вызван позже
     }
     
-    // === ШАГ 8: Загружаем из таблицы лидеров ВК (только для VK) ===
+    // === ШАГ 8: Загружаем из таблицы лидеров ===
     if (platform === 'vk' && vkInitialized && userIdForVK && vkUserToken) {
         tasksToWait++;
+        saveLog('🏆 Загружаем из таблицы лидеров...');
         vkBridge.send('VKWebAppCallAPIMethod', {
             method: 'apps.getScore',
             request_id: 'checkScore_' + Date.now(),
@@ -385,23 +494,42 @@ export const loadYandexHighScore = (storeInstance) => {
         })
         .then(data => {
             leaderboardScore = parseInt(data.response) || 0;
-            console.log('🏆 Таблица лидеров ВК рекорд:', leaderboardScore);
+            saveLog('🏆 Таблица лидеров:', leaderboardScore);
             checkAndFinalize();
         })
         .catch(err => {
-            console.warn('⚠️ Ошибка таблицы лидеров:', err);
+            saveLog('❌ Ошибка таблицы лидеров:', err);
             checkAndFinalize();
         });
-    } else {
-        console.log('⚠️ Таблица лидеров пропущена');
     }
     
-    // === ШАГ 9: Если нечего ждать — сразу финализируем ===
-    console.log(`📊 Итого задач для ожидания: ${tasksToWait}`);
+    // === ШАГ 9: Финализируем ===
+    saveLog(`📊 Итого задач: ${tasksToWait}`);
     if (tasksToWait === 0) {
-        console.log('⚡ Нет задач, сразу финализируем');
+        saveLog('⚡ Нет задач, сразу финализируем');
         finalizeAndSync();
     }
+    
+    // === СОХРАНЯЕМ ЛОГИ В WINDOW для доступа из консоли (на ПК) ===
+    window.getVKLogs = function() {
+        const logs = localStorage.getItem('vk_debug_logs');
+        if (logs) {
+            const parsed = JSON.parse(logs);
+            console.log('=== VK DEBUG LOGS ===');
+            parsed.forEach(log => {
+                console.log(`[${log.time}] ${log.message}`, log.data || '');
+            });
+            return parsed;
+        }
+        return [];
+    };
+    
+    // Автоматически выводим логи в консоль через 5 секунд (на ПК)
+    setTimeout(() => {
+        if (window.getVKLogs) {
+            window.getVKLogs();
+        }
+    }, 5000);
 };
 
 
