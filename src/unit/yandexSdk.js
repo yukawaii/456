@@ -197,57 +197,42 @@ export const loadYandexHighScore = (storeInstance) => {
   
   // Функция для финальной синхронизации после загрузки всех данных
 const finalizeAndSync = () => {
-  // ✅ Для ВК — приоритет VK Storage
-  let maxScore;
-  if (platform === 'vk') {
-    // ВК: главное — VK Storage, резерв — Cloudflare
-    maxScore = Math.max(localScore, vkStorageScore, leaderboardScore);
-    // Если VK Storage пуст, но есть Cloudflare — используем Cloudflare
-    if (vkStorageScore === 0 && cloudflareScore > 0) {
-      maxScore = Math.max(maxScore, cloudflareScore);
-      // Сохраняем в VK Storage
+  // ✅ Сначала находим абсолютный максимум из всех источников
+  const absoluteMax = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
+  console.log('🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
+  
+  // ✅ Для ВК — используем VK Storage как основное, но синхронизируем с абсолютным максимумом
+  let maxScore = absoluteMax;
+  
+  // Если на ВК и есть VK Storage, но он меньше абсолютного максимума — обновляем
+  if (platform === 'vk' && typeof vkBridge !== 'undefined') {
+    if (vkStorageScore < absoluteMax) {
       vkBridge.send('VKWebAppStorageSet', {
         key: CLOUD_STORAGE_KEY,
-        value: String(cloudflareScore)
+        value: String(absoluteMax)
       });
+      console.log('🔄 VK Storage обновлён до:', absoluteMax);
     }
-  } else {
-    // Для ОК — приоритет Cloudflare
-    maxScore = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
   }
   
-  console.log('🏆 ИТОГОВЫЙ МАКСИМАЛЬНЫЙ РЕКОРД:', maxScore);
-
+  // Если Cloudflare меньше абсолютного максимума — обновляем
+  if (window.vkUserId && cloudflareScore < absoluteMax) {
+    saveCloudScore(window.vkUserId, absoluteMax);
+    console.log('🔄 Cloudflare обновлён до:', absoluteMax);
+  }
+  
   // Обновляем store
   let currentMax = 0;
   try {
     currentMax = storeInstance.getState().get('max') || 0;
   } catch(e) {}
-
-  if (maxScore > currentMax) {
-    storeInstance.dispatch(actions.max(maxScore));
-
-    // ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ
-    localStorage.setItem('tetris_high_score', maxScore);
+  
+  if (absoluteMax > currentMax) {
+    storeInstance.dispatch(actions.max(absoluteMax));
+    localStorage.setItem('tetris_high_score', absoluteMax);
     localStorage.setItem('vk_user_id', window.vkUserId || '');
-    console.log('✅ Рекорд принудительно сохранен в localStorage:', maxScore);
-  }
-
-  // Синхронизация (если нужно)
-  if (maxScore > 0) {
-    // Cloudflare — для всех платформ (если рекорд больше)
-    if (window.vkUserId && maxScore > cloudflareScore) {
-      saveCloudScore(window.vkUserId, maxScore);
-    }
-
-    // VK Storage - только для VK! (если рекорд больше)
-    if (platform === 'vk' && typeof vkBridge !== 'undefined' && maxScore > vkStorageScore) {
-      vkBridge.send('VKWebAppStorageSet', {
-        key: CLOUD_STORAGE_KEY,
-        value: String(maxScore)
-      });
-    }
-
+    console.log('✅ Рекорд обновлён в store и localStorage:', absoluteMax);
+  
     // Таблица лидеров ВК - только для VK
     if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken && maxScore > leaderboardScore) {
       vkBridge.send('VKWebAppCallAPIMethod', {
