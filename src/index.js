@@ -21,20 +21,27 @@ import {
   showBannerAd,        
 } from './unit/yandexSdk';
 
+console.log('🔥 index.js ЗАГРУЖЕН!');
+
 logPlatform();
 var PLATFORM = getPlatform();
 
 
 // Инициализация VK и загрузка рекорда (не блокирует рендер)
-if (typeof vkBridge !== 'undefined') {  initYandexSdk().then(() => {
+if (typeof vkBridge !== 'undefined') {  
+   console.log('🔥 vkBridge найден, вызываем initYandexSdk...'); 
+  initYandexSdk().then(() => {
+      console.log('🔥 initYandexSdk завершен! вызов loadYandexHighScore, subscribeRecord ');
     loadYandexHighScore(store);    subscribeRecord(store);
     // Показать баннер только после инициализации VK
   if (typeof showBannerAd === 'function') {
     showBannerAd();
   }
-  }).catch(err => {    console.error('Ошибка инициализации:', err);
+  }).catch(err => {  
+      console.error('Ошибка инициализации:', err);
     loadYandexHighScore(store);    subscribeRecord(store);  });
 } else {  // Локальный запуск
+   console.log('🔥 vkBridge НЕ найден, загружаем локально');
   loadYandexHighScore(store);  subscribeRecord(store);
 }
 

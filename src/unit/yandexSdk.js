@@ -68,6 +68,7 @@ export const updateUserLanguage = () => {  if (typeof vkBridge === 'undefined') 
 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
 export const initYandexSdk = () => {
+    console.log('🔥 initYandexSdk ВЫЗВАН!');
   return new Promise((resolve) => {
     if (typeof vkBridge === 'undefined') {
       console.warn('VK Bridge не обнаружен');
@@ -143,6 +144,7 @@ export const initYandexSdk = () => {
 
 // ===== ЗАГРУЗКА РЕКОРДА из облаков(единая для ВК и ОК) =====
 export const loadYandexHighScore = (storeInstance) => {
+    console.log('🔥 loadYandexHighScore ВЫЗВАН!');
   const platform = getPlatform();  
     // Проверяем, что ID установлен
   if (!window.vkUserId) {
@@ -302,6 +304,7 @@ export const loadYandexHighScore = (storeInstance) => {
 
 // ===== СОХРАНЕНИЕ РЕКОРДА в облака (единая для ВК и ОК) =====
 export const saveYandexScore = (scoreValue) => {
+    console.log('🔥 saveYandexScore ВЫЗВАН!');
   const currentScore = parseInt(scoreValue, 10) || 0;
   if (currentScore <= 0) return;
 
