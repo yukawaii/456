@@ -335,70 +335,68 @@ const finalizeAndSync = () => {
 // ===== СОХРАНЕНИЕ РЕКОРДА в облака (единая для ВК и ОК) =====
 export const saveYandexScore = (scoreValue) => {
   console.log('🔥 saveYandexScore ВЫЗВАН!');
+  const platform = getPlatform();
+  console.log('📱 Платформа:', platform);
+  console.log('📱 vkBridge доступен?', typeof vkBridge !== 'undefined');
+  
   const currentScore = parseInt(scoreValue, 10) || 0;
   if (currentScore <= 0) return;
 
-  // 1. Проверяем локальный рекорд
+  // Проверяем локальный рекорд
   let localMax = 0;
   try {
     localMax = store.getState().get('max') || 0;
   } catch(e) {}
 
-  // ✅ Просто логируем, но не блокируем
   if (currentScore <= localMax) {
-    console.log(`📀 Рекорд не побит (локально): ${currentScore} <= ${localMax}, но всё равно сохраняем`);
+    console.log(`📀 Рекорд не побит (локально): ${currentScore} <= ${localMax}`);
+    return;
   }
 
-  // 2. Сохраняем локально
+  // Сохраняем локально
   localStorage.setItem('tetris_high_score', currentScore);
   store.dispatch(actions.max(currentScore));
   console.log(`📀 Рекорд сохранён в localStorage:`, currentScore);
 
-  const platform = getPlatform();
+  // ✅ Находим bridge (глобальный или из window)
+  const bridge = typeof vkBridge !== 'undefined' ? vkBridge : window.vkBridge;
 
-  // ===== ДОПОЛНЕНИЕ ДЛЯ ВК =====
-  if (platform === 'vk' && typeof vkBridge !== 'undefined') {
-    // 3. Сохраняем в VK Storage (для синхронизации между ПК и телефоном)
-    vkBridge.send('VKWebAppStorageSet', {
+  // ✅ Для ВК — сохраняем в VK Storage
+  if (bridge) {
+    bridge.send('VKWebAppStorageSet', {
       key: CLOUD_STORAGE_KEY,
       value: String(currentScore)
     })
-    .then(() => console.log(`💾 VK Storage: рекорд ${currentScore} сохранён (синхронизация ПК↔Телефон)`))
-    .catch(err => console.error('❌ Ошибка сохранения в VK Storage:', err));
-
-    // 4. Обновляем таблицу лидеров ВК
-    if (vkInitialized && window.vkUserIdForLeaderboard && vkUserToken) {
-      vkBridge.send('VKWebAppCallAPIMethod', {
-        method: 'secure.addAppEvent',
-        request_id: 'addScore_' + Date.now(),
-        params: {
-          client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
-          user_id: window.vkUserIdForLeaderboard,
-          activity_id: 2,
-          value: currentScore,
-          v: '5.131',
-          global: 1,
-          access_token: ACCESS_TOKEN
-        }
-      })
-      .then(() => console.log(`🏆 Таблица лидеров ВК: рекорд ${currentScore} отправлен!`))
-      .catch(err => console.error('❌ Ошибка отправки в таблицу лидеров:', err));
-    }
-
-    // 5. ✅ ДОПОЛНИТЕЛЬНО: сохраняем в Cloudflare (для резерва, если нужно)
-    if (window.vkUserId && currentScore > 0) {
-      saveCloudScore(window.vkUserId, currentScore)
-        .then(() => console.log(`☁️ Cloudflare: рекорд ${currentScore} сохранён (резерв для ВК)`))
-        .catch(err => console.error('❌ Ошибка сохранения в Cloudflare:', err));
-    }
+    .then(() => console.log(`💾 VK Storage: рекорд ${currentScore} сохранён`))
+    .catch(err => console.error('❌ Ошибка VK Storage:', err));
   } else {
-    // ===== ДЛЯ ОК (оставляем как было) =====
-    // 3. Сохраняем в Cloudflare (основное хранилище для ОК)
-    if (window.vkUserId && currentScore > 0) {
-      saveCloudScore(window.vkUserId, currentScore)
-        .then(() => console.log(`☁️ Cloudflare: рекорд ${currentScore} сохранён (основное хранилище ОК)`))
-        .catch(err => console.error('❌ Ошибка сохранения в Cloudflare:', err));
-    }
+    console.warn('⚠️ VK Bridge не доступен, VK Storage не сохранён');
+  }
+
+  // Сохраняем в Cloudflare (для ОК и резерва)
+  if (window.vkUserId && currentScore > 0) {
+    saveCloudScore(window.vkUserId, currentScore)
+      .then(() => console.log(`☁️ Cloudflare: рекорд ${currentScore} сохранён`))
+      .catch(err => console.error('❌ Ошибка Cloudflare:', err));
+  }
+
+  // Таблица лидеров ВК
+  if (platform === 'vk' && bridge && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken) {
+    bridge.send('VKWebAppCallAPIMethod', {
+      method: 'secure.addAppEvent',
+      request_id: 'addScore_' + Date.now(),
+      params: {
+        client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
+        user_id: window.vkUserIdForLeaderboard,
+        activity_id: 2,
+        value: currentScore,
+        v: '5.131',
+        global: 1,
+        access_token: ACCESS_TOKEN
+      }
+    })
+    .then(() => console.log(`🏆 Таблица лидеров ВК: рекорд ${currentScore} отправлен!`))
+    .catch(err => console.error('❌ Ошибка таблицы лидеров:', err));
   }
 
   console.log(`✅ Рекорд ${currentScore} успешно сохранён!`);
