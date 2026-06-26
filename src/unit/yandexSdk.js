@@ -196,9 +196,9 @@ export const loadYandexHighScore = (storeInstance) => {
   let tasksToWait = 0;  
   
   // Функция для финальной синхронизации после загрузки всех данных
-const finalizeAndSync = () => {
-    // ✅ Сначала находим абсолютный максимум из всех источников
-    const absoluteMax = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
+  const finalizeAndSync = function() {
+    // ✅ Находим абсолютный максимум из всех источников
+    var absoluteMax = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
     console.log('🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
     
     // ✅ ПРИНУДИТЕЛЬНАЯ СИНХРОНИЗАЦИЯ ДЛЯ ТЕЛЕФОНА
@@ -224,7 +224,7 @@ const finalizeAndSync = () => {
     }
     
     // Обновляем store
-    let currentMax = 0;
+    var currentMax = 0;
     try {
       currentMax = storeInstance.getState().get('max') || 0;
     } catch(e) {}
@@ -235,25 +235,40 @@ const finalizeAndSync = () => {
       localStorage.setItem('vk_user_id', window.vkUserId || '');
       console.log('✅ Рекорд обновлён в store и localStorage:', absoluteMax);
     }
-  
-    // Таблица лидеров ВК - только для VK
-    if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken && maxScore > leaderboardScore) {
-      vkBridge.send('VKWebAppCallAPIMethod', {
-        method: 'secure.addAppEvent',
-        request_id: 'syncScore_' + Date.now(),
-        params: {
-          client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
-          user_id: window.vkUserIdForLeaderboard,
-          activity_id: 2,
-          value: maxScore,
-          v: '5.131',
-          global: 1,
-          access_token: ACCESS_TOKEN
-        }
-      });
+    
+    // Синхронизация (если нужно)
+    if (absoluteMax > 0) {
+      // Cloudflare
+      if (window.vkUserId && absoluteMax > cloudflareScore) {
+        saveCloudScore(window.vkUserId, absoluteMax);
+      }
+      
+      // VK Storage - только для VK!
+      if (platform === 'vk' && typeof vkBridge !== 'undefined' && absoluteMax > vkStorageScore) {
+        vkBridge.send('VKWebAppStorageSet', {
+          key: CLOUD_STORAGE_KEY,
+          value: String(absoluteMax)
+        });
+      }
+      
+      // Таблица лидеров ВК
+      if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken && absoluteMax > leaderboardScore) {
+        vkBridge.send('VKWebAppCallAPIMethod', {
+          method: 'secure.addAppEvent',
+          request_id: 'syncScore_' + Date.now(),
+          params: {
+            client_secret: 'Q5I9iCJXGWiwYDb8aaHr',
+            user_id: window.vkUserIdForLeaderboard,
+            activity_id: 2,
+            value: absoluteMax,
+            v: '5.131',
+            global: 1,
+            access_token: ACCESS_TOKEN
+          }
+        });
+      }
     }
-  }
-};
+  };
 
   const checkAndFinalize = () => {
     tasksToWait--;
