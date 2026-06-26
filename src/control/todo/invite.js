@@ -13,16 +13,12 @@ const down = (store) => {
     states.pause(true);
   }
 
-  setTimeout(() => {
-    // Проверяем, инициализирован ли VK Bridge
-    if (window.vkInitialized) {
-      vkBridge.send('VKWebAppShowInviteBox')
-        .catch((e) => console.error('Ошибка окна приглашений ВК:', e));
-    } else {
-      console.warn('VK Bridge еще не инициализирован, пропускаем вызов');
-      // Можно показать пользователю сообщение или просто игнорировать
-    }
-  }, 150);
+setTimeout(() => {
+  if (window.vkBridge && window.vkInitialized) {
+    window.vkBridge.send('VKWebAppShowInviteBox')
+      .catch((e) => console.error('Ошибка окна приглашений:', e));
+  }
+}, 150);
 };
 
 const up = (store) => {

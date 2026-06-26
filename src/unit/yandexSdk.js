@@ -74,10 +74,15 @@ export const initYandexSdk = () => {
       resolve(null);
       return;
     }
+       console.log('[init] Bridge найден, инициализация начинается...');    
+ // СОХРАНЯЕМ bridge В window ДЛЯ ДОСТУПА ИЗ ДРУГИХ ФАЙЛОВ И КОНСОЛИ
+    window.vkBridge = vkBridge;
+
     vkBridge.send('VKWebAppInit')
       .then(() => {
         console.log('VK Bridge успешно инициализирован');
         vkInitialized = true;
+
         return vkBridge.send('VKWebAppGetLaunchParams');
       })
       .then((launchParams) => {
