@@ -93,6 +93,7 @@ export const initYandexSdk = () => {
         // Для синхронизации через Cloudflare используем универсальный ID
         vkUserId = vkOriginalId;
         window.vkUserId = vkUserId;
+         localStorage.setItem('vk_user_id', vkUserId); 
         
         // Для таблицы лидеров ВК сохраняем оригинальный VK ID (если есть)
         window.vkUserIdForLeaderboard = vkUserIdRaw || vkOriginalId; // fallback
@@ -118,12 +119,7 @@ export const initYandexSdk = () => {
   // Сохраняем в window для доступа из других мест
   window.vkUserToken = vkUserToken;
   window.vkInitialized = true;
- // Убеждаемся, что ID не теряются
-  if (window.vkUserId) {
-    console.log('[init] window.vkUserId сохранен:', window.vkUserId);
-  } else {
-    console.warn('[init] window.vkUserId не сохранен!');
-  }
+  localStorage.setItem('vk_initialized', 'true');
 
   ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: window.vkUserLang };
   resolve(ysdkInstance);
@@ -165,13 +161,27 @@ export const loadYandexHighScore = (storeInstance) => {
   let cloudflareScore = 0;  
   let vkStorageScore = 0;  
   let leaderboardScore = 0;  
-  
-  // 1. Читаем localStorage
+  // Восстанавливаем ID из localStorage, если window.vkUserId потерялся
+  if (!window.vkUserId) {
+    const savedId = localStorage.getItem('vk_user_id');
+    if (savedId) {
+      window.vkUserId = savedId;
+      console.log('[loadYandexHighScore] ID восстановлен из localStorage:', savedId);
+    }
+  }
+ // 1. Читаем localStorage через правильный ключ
   try {
-    localScore = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
-    console.log('📀 localStorage рекорд:', localScore);
-  } catch(e) {}
-
+    const savedData = localStorage.getItem('REACT_TETRIS');
+    if (savedData) {
+      const parsed = JSON.parse(atob(decodeURIComponent(savedData)));
+      localScore = parsed.max || 0;
+    }
+  } catch(e) {
+    // Fallback на старый ключ
+    try {
+      localScore = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
+    } catch(e2) {}
+  }  console.log('📀 localStorage рекорд:', localScore);
   // Счетчик задач, которые должны завершиться
   let tasksToWait = 0;  
   
