@@ -115,6 +115,23 @@ export const initYandexSdk = () => {
         return getUserAccessToken();
       })
       .then(() => {
+  // Сохраняем в window для доступа из других мест
+  window.vkUserToken = vkUserToken;
+  window.vkInitialized = true;
+// window.vkUserId = vkUserId;
+  // Эти переменные уже установлены в window внутри .then((launchParams) => { ... })
+  // Поэтому просто проверяем, что они есть
+//  if (!window.vkUserIdForLeaderboard) {
+ //   window.vkUserIdForLeaderboard = vkUserId; // fallback
+ // }
+ // if (!window.vkUserLang) {
+ //   window.vkUserLang = 'ru'; // fallback
+ // }
+
+  ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: window.vkUserLang };
+  resolve(ysdkInstance);
+});
+   /*   .then(() => {
         // Сохраняем в window для доступа из других мест (на всякий случай. Точно - хз зачем, но пусть будет)
   window.vkUserToken = vkUserToken;
   window.vkUserId = vkUserId;
@@ -127,7 +144,7 @@ export const initYandexSdk = () => {
       .catch((err) => {
         console.error('Ошибка инициализации VK Bridge:', err);
         resolve(null);
-      });
+      });*/
   });
 };
 

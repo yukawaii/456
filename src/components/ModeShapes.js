@@ -9,7 +9,7 @@ export default class ModeShapes extends React.Component {
   }
 
   componentDidMount() {
-    console.log('ModeShapes mounted');
+   // console.log('ModeShapes mounted');
     
     // Запускаем проверку каждую секунду
     this.interval = setInterval(() => {
@@ -28,7 +28,7 @@ export default class ModeShapes extends React.Component {
     
     // Если есть новое значение от mode.js - обновляем
     if (mode && mode !== this.state.currentMode) {
-      console.log('Режим изменился на:', mode);
+     // console.log('Режим изменился на:', mode);
       this.setState({ currentMode: mode });
     }
   }
