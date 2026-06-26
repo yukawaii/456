@@ -15,7 +15,7 @@ let vkUserToken = null;      // ← ТОКЕН ПОЛЬЗОВАТЕЛЯ
 let vkUserLang = null;       // ← ЯЗЫК ПОЛЬЗОВАТЕЛЯ
 let ysdkInstance = null;
 
-vkBridge.send("VKWebAppInit");
+//vkBridge.send("VKWebAppInit"); //конфликт с повторной инит
 // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 export const setYsdk = (ysdk) => { ysdkInstance = ysdk; console.log('SDK готов'); };
 export const getYsdk = () => ysdkInstance;
@@ -118,15 +118,12 @@ export const initYandexSdk = () => {
   // Сохраняем в window для доступа из других мест
   window.vkUserToken = vkUserToken;
   window.vkInitialized = true;
-// window.vkUserId = vkUserId;
-  // Эти переменные уже установлены в window внутри .then((launchParams) => { ... })
-  // Поэтому просто проверяем, что они есть
-//  if (!window.vkUserIdForLeaderboard) {
- //   window.vkUserIdForLeaderboard = vkUserId; // fallback
- // }
- // if (!window.vkUserLang) {
- //   window.vkUserLang = 'ru'; // fallback
- // }
+ // Убеждаемся, что ID не теряются
+  if (window.vkUserId) {
+    console.log('[init] window.vkUserId сохранен:', window.vkUserId);
+  } else {
+    console.warn('[init] window.vkUserId не сохранен!');
+  }
 
   ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: window.vkUserLang };
   resolve(ysdkInstance);
@@ -151,6 +148,19 @@ export const initYandexSdk = () => {
 // ===== ЗАГРУЗКА РЕКОРДА из облаков(единая для ВК и ОК) =====
 export const loadYandexHighScore = (storeInstance) => {
   const platform = getPlatform();  
+    // Проверяем, что ID установлен
+  if (!window.vkUserId) {
+    console.warn('[loadYandexHighScore] window.vkUserId отсутствует!');
+    // Пытаемся получить ID из URL как fallback
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('vk_user_id') || 
+                   urlParams.get('vk_original_vk_id') || 
+                   urlParams.get('vk_ok_user_id');
+    if (userId) {
+      console.log('[loadYandexHighScore] ID из URL (fallback):', userId);
+      window.vkUserId = userId;
+    }
+  }
   let localScore = 0;  
   let cloudflareScore = 0;  
   let vkStorageScore = 0;  
