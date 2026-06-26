@@ -121,7 +121,15 @@ export const initYandexSdk = () => {
   window.vkUserToken = vkUserToken;
   window.vkInitialized = true;
   localStorage.setItem('vk_initialized', 'true');
-
+ // СОХРАНЯЕМ В window ДЛЯ ОТЛАДКИ
+  window.initYandexSdk = initYandexSdk;
+  window.loadYandexHighScore = loadYandexHighScore;
+  window.saveYandexScore = saveYandexScore;
+  window.vkBridge = vkBridge;
+  window.vkUserId = vkUserId;
+  window.vkInitialized = true;
+  
+  console.log('✅ Функции и данные сохранены в window');
   ysdkInstance = { bridge: vkBridge, userId: vkUserId, token: vkUserToken, lang: window.vkUserLang };
   resolve(ysdkInstance);
 });
@@ -497,14 +505,6 @@ export const getPlatformScore = loadYandexHighScore;
 export const sendPlatformScore = saveYandexScore;
 export const showPlatformLeaderboard = fetchYandexLeaderboard;
 export const showPlatformAd = showFullscreenAd;
-// ===== ДЛЯ ОТЛАДКИ (сохраняем в window) =====
-if (typeof window !== 'undefined') {
-  window.initYandexSdk = initYandexSdk;
-  window.loadYandexHighScore = loadYandexHighScore;
-  window.saveYandexScore = saveYandexScore;
-  window.vkBridge = vkBridge;
-  console.log('✅ Функции сохранены в window для отладки');
-}
 
 // ===== ЭКСПОРТ ДЛЯ COMMONJS (WEBPACK 1) =====
 module.exports = {
