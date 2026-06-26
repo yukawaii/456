@@ -3,7 +3,7 @@ import actions from '../actions';
 import store from '../store';
 import { i18n, lan } from './const';
 
-const CLOUD_STORAGE_KEY = 'vk_cloud_score';
+const CLOUD_STORAGE_KEY = 'vk_cloud_score2';
 // ===== КОНФИГУРАЦИЯ =====
 const APP_ID = 54620141;
 // ACCESS_TOKEN для серверных вызовов (не для клиента)

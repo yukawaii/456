@@ -28,22 +28,28 @@ var PLATFORM = getPlatform();
 
 
 // Инициализация VK и загрузка рекорда (не блокирует рендер)
-if (typeof vkBridge !== 'undefined') {  
-   console.log('🔥 vkBridge найден, вызываем initYandexSdk...'); 
+// src/index.js
+
+if (typeof vkBridge !== 'undefined') {
+  console.log('🔥 vkBridge найден, вызываем initYandexSdk...');
+  
   initYandexSdk().then(() => {
-      console.log('🔥 initYandexSdk завершен! вызов loadYandexHighScore, subscribeRecord ');
-    loadYandexHighScore(store);  
-      subscribeRecord(store);
-    // Показать баннер только после инициализации VK
-  if (typeof showBannerAd === 'function') {
-    showBannerAd();
-  }
-  }).catch(err => {  
-      console.error('Ошибка инициализации:', err);
-    loadYandexHighScore(store);    subscribeRecord(store);  });
-} else {  // Локальный запуск
-   console.log('🔥 vkBridge НЕ найден, загружаем локально');
-  loadYandexHighScore(store);  subscribeRecord(store);
+    console.log('🔥 initYandexSdk завершен!');
+    
+    // ✅ Сначала загружаем рекорд из Cloudflare
+    loadYandexHighScore(store);
+    
+    // ✅ Потом подписываемся на изменения
+    subscribeRecord(store);
+    
+    if (typeof showBannerAd === 'function') {
+      showBannerAd();
+    }
+  }).catch(err => {
+    console.error('Ошибка инициализации:', err);
+    loadYandexHighScore(store);
+    subscribeRecord(store);
+  });
 }
 
 window.openLeaderboard = fetchYandexLeaderboard;
@@ -51,7 +57,8 @@ window.openLeaderboard = fetchYandexLeaderboard;
 window.store = store;
 window.actions = actions; // тоже пригодится
 console.log('✅ store сохранен в window для отладки');
-
+//обнуление рекорда на экране (берем его из клауда, а не из локалов)
+store.dispatch(actions.max(0));
 // Начальная реклама и Запуск React
 //showFullscreenAd(() => {
   render(
