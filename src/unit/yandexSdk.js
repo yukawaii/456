@@ -1,5 +1,4 @@
 // yandexSdk.js — для VK Games (по образу рабочего App.js)
-import bridge from '@vkontakte/vk-bridge';
 import actions from '../actions';
 import store from '../store';
 import { i18n, lan } from './const';
@@ -16,7 +15,7 @@ let vkUserToken = null;      // ← ТОКЕН ПОЛЬЗОВАТЕЛЯ
 let vkUserLang = null;       // ← ЯЗЫК ПОЛЬЗОВАТЕЛЯ
 let ysdkInstance = null;
 
-bridge.send("VKWebAppInit");
+vkBridge.send("VKWebAppInit");
 // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 export const setYsdk = (ysdk) => { ysdkInstance = ysdk; console.log('SDK готов'); };
 export const getYsdk = () => ysdkInstance;
@@ -26,7 +25,7 @@ function getUserAccessToken() {  const platform = getPlatform();
   // Для Одноклассников токен не нужен
   if (platform === 'ok') {    console.log('[OK] Токен не требуется для Одноклассников');    vkUserToken = null;    window.vkUserToken = null;    return Promise.resolve(null);  }
     // Для ВК получаем токен
-  return bridge.send('VKWebAppGetAuthToken', {    app_id: APP_ID,    scope: ''  })  .then(data => {    console.log('[VK] Токен игрока получен');    vkUserToken = data.access_token;    window.vkUserToken = vkUserToken;
+  return vkBridge.send('VKWebAppGetAuthToken', {    app_id: APP_ID,    scope: ''  })  .then(data => {    console.log('[VK] Токен игрока получен');    vkUserToken = data.access_token;    window.vkUserToken = vkUserToken;
     return vkUserToken;  })  .catch(err => {    console.error('[VK] Ошибка получения токена:', err);    vkUserToken = null;    window.vkUserToken = null;    return null;  });
 }
 
@@ -47,7 +46,7 @@ function getPlatform() {
 }
 
 // Получение единого ID пользователя для синхронизации между ВК и ОК
-export const updateSyncUserId = () => {  if (typeof bridge === 'undefined') {    console.warn('[updateSyncUserId] VK Bridge не найден');
+export const updateSyncUserId = () => {  if (typeof vkBridge === 'undefined') {    console.warn('[updateSyncUserId] VK Bridge не найден');
     return;  }  
   bridge.send('VKWebAppGetLaunchParams')
     .then((launchParams) => {      vkUserId = launchParams.vk_original_vk_id || launchParams.vk_user_id;
@@ -56,9 +55,9 @@ export const updateSyncUserId = () => {  if (typeof bridge === 'undefined') {   
 };
 
 // Получение языка пользователя
-export const updateUserLanguage = () => {  if (typeof bridge === 'undefined') {    console.warn('[updateUserLanguage] VK Bridge не найден');
+export const updateUserLanguage = () => {  if (typeof vkBridge === 'undefined') {    console.warn('[updateUserLanguage] VK Bridge не найден');
     return;  }  
-  bridge.send('VKWebAppGetLaunchParams')
+  vkBridge.send('VKWebAppGetLaunchParams')
     .then((launchParams) => {      const language = launchParams.vk_language || launchParams.language || 'ru';
       vkUserLang = language;      console.log('[updateUserLanguage] Язык пользователя:', language);      
       // Применяем язык к игре
@@ -70,16 +69,16 @@ export const updateUserLanguage = () => {  if (typeof bridge === 'undefined') { 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
 export const initYandexSdk = () => {
   return new Promise((resolve) => {
-    if (typeof bridge === 'undefined') {
+    if (typeof vkBridge === 'undefined') {
       console.warn('VK Bridge не обнаружен');
       resolve(null);
       return;
     }
-    bridge.send('VKWebAppInit')
+    vkBridge.send('VKWebAppInit')
       .then(() => {
         console.log('VK Bridge успешно инициализирован');
         vkInitialized = true;
-        return bridge.send('VKWebAppGetLaunchParams');
+        return vkBridge.send('VKWebAppGetLaunchParams');
       })
       .then((launchParams) => {
         // Сохраняем оба ID
@@ -168,8 +167,8 @@ export const loadYandexHighScore = (storeInstance) => {
       }
       
       // VK Storage - только для VK!
-      if (platform === 'vk' && typeof bridge !== 'undefined' && maxScore > vkStorageScore) {
-        bridge.send('VKWebAppStorageSet', {
+      if (platform === 'vk' && typeof vkBridge !== 'undefined' && maxScore > vkStorageScore) {
+        vkBridge.send('VKWebAppStorageSet', {
           key: CLOUD_STORAGE_KEY,
           value: String(maxScore)
         });
@@ -177,7 +176,7 @@ export const loadYandexHighScore = (storeInstance) => {
       
       // Таблица лидеров ВК - только для VK, используем правильный ID!
       if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken && maxScore > leaderboardScore) {
-        bridge.send('VKWebAppCallAPIMethod', {
+        vkBridge.send('VKWebAppCallAPIMethod', {
           method: 'secure.addAppEvent',
           request_id: 'syncScore_' + Date.now(),
           params: {
@@ -212,9 +211,9 @@ export const loadYandexHighScore = (storeInstance) => {
   }
 
   // 3. Загружаем из VK Storage - только для VK
-  if (platform === 'vk' && typeof bridge !== 'undefined') {
+  if (platform === 'vk' && typeof vkBridge !== 'undefined') {
     tasksToWait++;
-    bridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
+    vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
       .then(data => {
         if (data.keys && data.keys[0] && data.keys[0].value) {
           vkStorageScore = parseInt(data.keys[0].value, 10) || 0;
@@ -231,7 +230,7 @@ export const loadYandexHighScore = (storeInstance) => {
   // 4. Загружаем из таблицы лидеров ВК - только для VK
   if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken) {
     tasksToWait++;
-    bridge.send('VKWebAppCallAPIMethod', {
+    vkBridge.send('VKWebAppCallAPIMethod', {
       method: 'apps.getScore',
       request_id: 'checkScore_' + Date.now(),
       params: {
@@ -294,8 +293,8 @@ export const saveYandexScore = (scoreValue) => {
   }
 
   // 4. Сохраняем в VK Storage (только для VK)
-  if (platform === 'vk' && typeof bridge !== 'undefined') {
-    bridge.send('VKWebAppStorageSet', {
+  if (platform === 'vk' && typeof vkBridge !== 'undefined') {
+    vkBridge.send('VKWebAppStorageSet', {
       key: CLOUD_STORAGE_KEY,
       value: String(currentScore)
     })
@@ -305,7 +304,7 @@ export const saveYandexScore = (scoreValue) => {
 
   // 5. Для ВК: обновляем таблицу лидеров
   if (platform === 'vk' && vkInitialized && window.vkUserIdForLeaderboard && vkUserToken) {
-    bridge.send('VKWebAppCallAPIMethod', {
+    vkBridge.send('VKWebAppCallAPIMethod', {
       method: 'secure.addAppEvent',
       request_id: 'addScore_' + Date.now(),
       params: {
@@ -351,7 +350,7 @@ if (platform === 'ok') {    console.log('[ОК] Предлагаем оцени�
     // Для VK — таблица лидеров
     if (!vkInitialized) {      resolve({ status: 'offline' });      return;    }    
     const currentMaxScore = store.getState().get('max') || 0;    
-    bridge.send('VKWebAppShowLeaderBoardBox', { user_result: currentMaxScore })
+    vkBridge.send('VKWebAppShowLeaderBoardBox', { user_result: currentMaxScore })
       .then(() => resolve({ status: 'success' }))      .catch((error) => {        console.error('Ошибка открытия лидерборда:', error);
         resolve({ status: 'error', error });      });  });
 };
@@ -361,7 +360,7 @@ export const showFullscreenAd = (onAdCloseCallback = null) => {
   if (!vkInitialized) {    if (onAdCloseCallback) onAdCloseCallback();
     return;
   }  
-  bridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
+  vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
     .then((data) => {      if (data.result && onAdCloseCallback) onAdCloseCallback();
     })
     .catch((error) => {      console.error('Ошибка показа рекламы:', error);
@@ -378,7 +377,7 @@ export const showVkInviteBox = () => {
     return;
   }  
   if (platform === 'vk' && typeof vkBridge !== 'undefined') {
-    bridge.send('VKWebAppShowInviteBox')
+    vkBridge.send('VKWebAppShowInviteBox')
       .then((data) => {        if (data.success) console.log('[ВК] Приглашения отправлены');      })
       .catch((err) => console.error('[ВК] Ошибка:', err));  }
 };
@@ -386,7 +385,7 @@ export const showVkInviteBox = () => {
 export const showBannerAd = () => {  const platform = getPlatform();  
   if (platform !== 'vk') {    console.log('[Баннер] Платформа не VK, баннер не показываем');    return;  }
   if (!vkInitialized) {    console.warn('[Баннер] VK не инициализирован');    return;  }
-  bridge.send('VKWebAppShowBannerAd', {})  // ← пустой объект
+  vkBridge.send('VKWebAppShowBannerAd', {})  // ← пустой объект
     .then(() => console.log('[Баннер] Показан в VK'))    .catch(err => console.error('[Баннер] Ошибка:', err));
   };
 

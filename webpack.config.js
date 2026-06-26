@@ -8,7 +8,7 @@ module.exports = {
     path: __dirname + '/server',
     filename: 'app.js',
   },
-   resolve: config.resolve,
+     externals: config.externals, 
   eslint: config.eslint,
   module: {
     loaders: config.loaders

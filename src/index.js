@@ -26,7 +26,7 @@ var PLATFORM = getPlatform();
 
 
 // Инициализация VK и загрузка рекорда (не блокирует рендер)
-if (typeof bridge !== 'undefined') {  initYandexSdk().then(() => {
+if (typeof vkBridge !== 'undefined') {  initYandexSdk().then(() => {
     loadYandexHighScore(store);    subscribeRecord(store);
     // Показать баннер только после инициализации VK
   if (typeof showBannerAd === 'function') {

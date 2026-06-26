@@ -1,7 +1,6 @@
 // invite.js
 import actions from '../../actions';
 import states from '../states';
-import bridge from '@vkontakte/vk-bridge';
 
 const down = (store) => {
   store.dispatch(actions.keyboard.invite(true));
@@ -17,7 +16,7 @@ const down = (store) => {
   setTimeout(() => {
     // Проверяем, инициализирован ли VK Bridge
     if (window.vkInitialized) {
-      bridge.send('VKWebAppShowInviteBox')
+      vkBridge.send('VKWebAppShowInviteBox')
         .catch((e) => console.error('Ошибка окна приглашений ВК:', e));
     } else {
       console.warn('VK Bridge еще не инициализирован, пропускаем вызов');
