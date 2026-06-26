@@ -326,10 +326,14 @@ export const saveYandexScore = (scoreValue) => {
     localMax = store.getState().get('max') || 0;
   } catch(e) {}
 
+    // ✅ Просто логируем, но не блокируем
   if (currentScore <= localMax) {
+    console.log(`📀 Рекорд не побит (локально): ${currentScore} <= ${localMax}, но всё равно сохраняем в VK Storage`);
+  }
+ /* if (currentScore <= localMax) {
     console.log(`📀 Рекорд не побит (локально): ${currentScore} <= ${localMax}`);
     return;
-  }
+  }*/
 
   // 2. Сохраняем локально
   localStorage.setItem('tetris_high_score', currentScore);
