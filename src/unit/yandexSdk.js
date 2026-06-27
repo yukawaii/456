@@ -410,84 +410,52 @@ export const loadYandexHighScore = (storeInstance) => {
     saveLog('  typeof vkBridge:', typeof vkBridge);
     saveLog('  userIdForVK:', userIdForVK);
     
-    if (platform === 'vk' && typeof vkBridge !== 'undefined' && userIdForVK) {
-        tasksToWait++;
-        saveLog('💾 Загружаем из VK Storage...');
-        
-        // ❗ КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Используем try/catch и несколько способов
-        try {
-            // Способ 1: Без user_id (как на ПК)
-            vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
-                .then(data => {
-                    saveLog('💾 Ответ (способ 1):', data);
-                    if (data && data.keys && data.keys[0] && data.keys[0].value) {
-                        vkStorageScore = parseInt(data.keys[0].value, 10) || 0;
-                        saveLog('💾 Рекорд (способ 1):', vkStorageScore);
+if (platform === 'vk' && typeof vkBridge !== 'undefined' && userIdForVK) {
+    tasksToWait++;
+    saveLog('💾 Загружаем из VK Storage...');
+    
+    // Пробуем стандартный способ
+    vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
+        .then(data => {
+            saveLog('💾 Ответ VK Storage (стандартный):', data);
+            if (data && data.keys && data.keys[0] && data.keys[0].value) {
+                vkStorageScore = parseInt(data.keys[0].value, 10) || 0;
+                saveLog('💾 VK Storage рекорд (стандартный):', vkStorageScore);
+                checkAndFinalize();
+            } else {
+                saveLog('⚠️ Стандартный способ вернул пустой ответ, пробуем альтернативный');
+                // Используем альтернативный способ
+                loadFromVKStorageAlternative(CLOUD_STORAGE_KEY)
+                    .then(score => {
+                        vkStorageScore = score;
+                        saveLog('💾 VK Storage рекорд (альтернативный):', vkStorageScore);
                         checkAndFinalize();
-                    } else {
-                        saveLog('⚠️ Способ 1 пустой, пробуем способ 2');
-                        // Способ 2: С user_id (для телефона)
-                        vkBridge.send('VKWebAppStorageGet', { 
-                            keys: [CLOUD_STORAGE_KEY],
-                            user_id: userIdForVK
-                        })
-                        .then(data2 => {
-                            saveLog('💾 Ответ (способ 2):', data2);
-                            if (data2 && data2.keys && data2.keys[0] && data2.keys[0].value) {
-                                vkStorageScore = parseInt(data2.keys[0].value, 10) || 0;
-                                saveLog('💾 Рекорд (способ 2):', vkStorageScore);
-                            } else {
-                                saveLog('⚠️ Способ 2 тоже пустой');
-                                vkStorageScore = 0;
-                            }
-                            checkAndFinalize();
-                        })
-                        .catch(err2 => {
-                            saveLog('❌ Ошибка способа 2:', err2);
-                            vkStorageScore = 0;
-                            checkAndFinalize();
-                        });
-                    }
-                })
-                .catch(err => {
-                    saveLog('❌ Ошибка способа 1:', err);
-                    // Способ 3: Через Promise напрямую
-                    try {
-                        saveLog('💾 Пробуем способ 3 (прямой вызов)...');
-                        const promise = vkBridge.send('VKWebAppStorageGet', { 
-                            keys: [CLOUD_STORAGE_KEY],
-                            user_id: userIdForVK
-                        });
-                        promise.then(data3 => {
-                            saveLog('💾 Ответ (способ 3):', data3);
-                            if (data3 && data3.keys && data3.keys[0] && data3.keys[0].value) {
-                                vkStorageScore = parseInt(data3.keys[0].value, 10) || 0;
-                                saveLog('💾 Рекорд (способ 3):', vkStorageScore);
-                            } else {
-                                vkStorageScore = 0;
-                            }
-                            checkAndFinalize();
-                        }).catch(err3 => {
-                            saveLog('❌ Ошибка способа 3:', err3);
-                            vkStorageScore = 0;
-                            checkAndFinalize();
-                        });
-                    } catch(e3) {
-                        saveLog('❌ Исключение способа 3:', e3);
+                    })
+                    .catch(err => {
+                        saveLog('❌ Ошибка альтернативной загрузки:', err);
                         vkStorageScore = 0;
                         checkAndFinalize();
-                    }
+                    });
+            }
+        })
+        .catch(err => {
+            saveLog('❌ Ошибка стандартной загрузки VK Storage:', err);
+            // Пробуем альтернативный способ
+            loadFromVKStorageAlternative(CLOUD_STORAGE_KEY)
+                .then(score => {
+                    vkStorageScore = score;
+                    saveLog('💾 VK Storage рекорд (альтернативный после ошибки):', vkStorageScore);
+                    checkAndFinalize();
+                })
+                .catch(err2 => {
+                    saveLog('❌ Ошибка альтернативной загрузки:', err2);
+                    vkStorageScore = 0;
+                    checkAndFinalize();
                 });
-        } catch(e) {
-            saveLog('❌ Критическая ошибка VK Storage:', e);
-            vkStorageScore = 0;
-            checkAndFinalize();
-        }
-    } else {
-        saveLog('⚠️ VK Storage пропущен');
-        // Если не VK, то финализируем без VK Storage
-        // checkAndFinalize() будет вызван позже
-    }
+        });
+} else {
+    saveLog('⚠️ VK Storage пропущен');
+}
     
     // === ШАГ 8: Загружаем из таблицы лидеров ===
     if (platform === 'vk' && vkInitialized && userIdForVK && vkUserToken) {
@@ -575,19 +543,27 @@ export const saveYandexScore = (scoreValue) => {
   // ✅ Находим bridge (глобальный или из window)
   const bridge = typeof vkBridge !== 'undefined' ? vkBridge : window.vkBridge;
 
-  // ✅ Для ВК — сохраняем в VK Storage
-   if (bridge) {
+  // ✅ Для ВК — сохраняем в VK Storage (с запасным способом)
+if (bridge) {
+    // Пробуем стандартный способ
     bridge.send('VKWebAppStorageSet', {
-      key: CLOUD_STORAGE_KEY,
-      value: String(currentScore)
-      // user_id не нужен, т.к. метод вызывается на клиенте
+        key: CLOUD_STORAGE_KEY,
+        value: String(currentScore)
     })
     .then(() => console.log(`💾 VK Storage: рекорд ${currentScore} сохранён`))
-    .catch(err => console.error('❌ Ошибка VK Storage:', err));
-  } else {
-    console.warn('⚠️ VK Bridge не доступен, VK Storage не сохранён');
-  }
-
+    .catch(err => {
+        console.warn('⚠️ Стандартный способ сохранения не сработал:', err);
+        // Используем альтернативный способ
+        saveToVKStorageAlternative(CLOUD_STORAGE_KEY, currentScore)
+            .then(success => {
+                if (success) {
+                    console.log(`💾 VK Storage (альтернативный): рекорд ${currentScore} сохранён`);
+                } else {
+                    console.warn('⚠️ Все способы сохранения в VK Storage не сработали');
+                }
+            });
+    });
+}
   // Сохраняем в Cloudflare (для ОК и резерва)
   if (window.vkUserId && currentScore > 0) {
     saveCloudScore(window.vkUserId, currentScore)
@@ -892,6 +868,132 @@ setTimeout(() => {
         }
     }
 }, 3000);
+
+// ===== АЛЬТЕРНАТИВНОЕ СОХРАНЕНИЕ В VK STORAGE (для телефона) =====
+export const saveToVKStorageAlternative = (key, value) => {
+    console.log('💾 Альтернативное сохранение в VK Storage:', key, value);
+    
+    return new Promise((resolve) => {
+        // Способ 1: Через VKWebAppStorageSet (стандартный)
+        if (typeof vkBridge !== 'undefined') {
+            vkBridge.send('VKWebAppStorageSet', {
+                key: key,
+                value: String(value)
+            })
+            .then(() => {
+                console.log('✅ VK Storage сохранён (способ 1)');
+                resolve(true);
+            })
+            .catch(err => {
+                console.warn('⚠️ Способ 1 не сработал:', err);
+                // Способ 2: Через VKWebAppCallAPIMethod с storage.set
+                try {
+                    vkBridge.send('VKWebAppCallAPIMethod', {
+                        method: 'storage.set',
+                        request_id: 'storage_set_' + Date.now(),
+                        params: {
+                            key: key,
+                            value: String(value),
+                            v: '5.131'
+                        }
+                    })
+                    .then(() => {
+                        console.log('✅ VK Storage сохранён (способ 2)');
+                        resolve(true);
+                    })
+                    .catch(err2 => {
+                        console.warn('⚠️ Способ 2 не сработал:', err2);
+                        // Способ 3: Через прямой fetch
+                        try {
+                            const userId = window.vkUserIdForLeaderboard || window.vkUserId;
+                            fetch(`https://api.vk.com/method/storage.set?key=${key}&value=${String(value)}&user_id=${userId}&v=5.131&access_token=${ACCESS_TOKEN}`, {
+                                method: 'POST'
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.response === 1) {
+                                    console.log('✅ VK Storage сохранён (способ 3)');
+                                    resolve(true);
+                                } else {
+                                    console.warn('⚠️ Способ 3 вернул ошибку:', data);
+                                    resolve(false);
+                                }
+                            })
+                            .catch(err3 => {
+                                console.warn('⚠️ Способ 3 не сработал:', err3);
+                                resolve(false);
+                            });
+                        } catch(e3) {
+                            console.warn('⚠️ Ошибка способа 3:', e3);
+                            resolve(false);
+                        }
+                    });
+                } catch(e2) {
+                    console.warn('⚠️ Ошибка способа 2:', e2);
+                    resolve(false);
+                }
+            });
+        } else {
+            resolve(false);
+        }
+    });
+};
+
+// ===== АЛЬТЕРНАТИВНАЯ ЗАГРУЗКА ИЗ VK STORAGE (для телефона) =====
+export const loadFromVKStorageAlternative = (key) => {
+    console.log('📥 Альтернативная загрузка из VK Storage:', key);
+    
+    return new Promise((resolve) => {
+        // Способ 1: Через VKWebAppStorageGet (стандартный)
+        if (typeof vkBridge !== 'undefined') {
+            vkBridge.send('VKWebAppStorageGet', { keys: [key] })
+            .then(data => {
+                if (data && data.keys && data.keys[0] && data.keys[0].value) {
+                    const score = parseInt(data.keys[0].value, 10) || 0;
+                    console.log('✅ VK Storage загружен (способ 1):', score);
+                    resolve(score);
+                } else {
+                    console.warn('⚠️ Способ 1 вернул пустой ответ');
+                    // Способ 2: Через VKWebAppCallAPIMethod с storage.get
+                    try {
+                        vkBridge.send('VKWebAppCallAPIMethod', {
+                            method: 'storage.get',
+                            request_id: 'storage_get_' + Date.now(),
+                            params: {
+                                key: key,
+                                v: '5.131'
+                            }
+                        })
+                        .then(data2 => {
+                            if (data2 && data2.response && data2.response[0] && data2.response[0].value) {
+                                const score = parseInt(data2.response[0].value, 10) || 0;
+                                console.log('✅ VK Storage загружен (способ 2):', score);
+                                resolve(score);
+                            } else {
+                                console.warn('⚠️ Способ 2 вернул пустой ответ');
+                                resolve(0);
+                            }
+                        })
+                        .catch(err2 => {
+                            console.warn('⚠️ Ошибка способа 2:', err2);
+                            resolve(0);
+                        });
+                    } catch(e2) {
+                        console.warn('⚠️ Ошибка способа 2:', e2);
+                        resolve(0);
+                    }
+                }
+            })
+            .catch(err => {
+                console.warn('⚠️ Ошибка способа 1:', err);
+                resolve(0);
+            });
+        } else {
+            resolve(0);
+        }
+    });
+};
+
 
 // Добавляем функцию в window для доступа из консоли
 window.showVKLogs = showDebugLogs;
