@@ -79,29 +79,33 @@ export const initYandexSdk = () => {
         vkInitialized = true;
         return vkBridge.send('VKWebAppGetLaunchParams');
       })
-      .then((launchParams) => {
-        console.log('[VK] LaunchParams получены:', launchParams);
-        
-        // Сохраняем все возможные ID
-        const vkOriginalId = launchParams.vk_original_vk_id || launchParams.vk_user_id || launchParams.vk_ok_user_id;
-        const vkUserIdRaw = launchParams.vk_user_id;
-
-        // Для синхронизации через Cloudflare используем универсальный ID
-        window.vkUserId = vkOriginalId;
-        // Для таблицы лидеров ВК сохраняем оригинальный VK ID
-        window.vkUserIdForLeaderboard = vkUserIdRaw || vkOriginalId;
-
-        // --- ИСПРАВЛЕНИЕ: Сохраняем ID в localStorage как резерв ---
-        if (window.vkUserId) {
-          localStorage.setItem('vk_user_id', window.vkUserId);
-        }
-
-        // Язык
-        window.vkUserLang = launchParams.vk_language || launchParams.language || 'ru';
-        
-        console.log('[VK] Единый ID для синхронизации:', window.vkUserId);
-        console.log('[VK] ID для таблицы лидеров:', window.vkUserIdForLeaderboard);
-        console.log('[VK] Язык:', window.vkUserLang);
+.then((launchParams) => {
+    console.log('[VK] LaunchParams получены:', launchParams);
+    
+    // Сохраняем ВСЕ возможные ID
+    const vkUserId = launchParams.vk_user_id; // Оригинальный VK ID
+    const vkOriginalId = launchParams.vk_original_vk_id; // Оригинальный ID (может быть VK или OK)
+    const vkOkUserId = launchParams.vk_ok_user_id; // ID в OK
+    
+    // Для таблицы лидеров используем vk_user_id (оригинальный VK ID)
+    window.vkUserIdForLeaderboard = vkUserId || vkOriginalId;
+    
+    // Для синхронизации через Cloudflare используем универсальный ID
+    window.vkUserId = vkOriginalId || vkUserId || vkOkUserId;
+    
+    // ❗ КРИТИЧНО: Сохраняем ВСЕ ID для диагностики
+    window.vkAllIds = {
+        vk_user_id: vkUserId,
+        vk_original_vk_id: vkOriginalId,
+        vk_ok_user_id: vkOkUserId,
+        vk_original_ok_id: launchParams.vk_original_ok_id,
+        raw: launchParams
+    };
+    localStorage.setItem('vk_all_ids', JSON.stringify(window.vkAllIds));
+    
+    console.log('[VK] Все ID:', window.vkAllIds);
+    console.log('[VK] ID для таблицы лидеров:', window.vkUserIdForLeaderboard);
+    console.log('[VK] ID для Cloudflare:', window.vkUserId);
         
         // Применяем язык
         try {
@@ -410,51 +414,76 @@ export const loadYandexHighScore = (storeInstance) => {
     saveLog('  typeof vkBridge:', typeof vkBridge);
     saveLog('  userIdForVK:', userIdForVK);
     
-if (platform === 'vk' && typeof vkBridge !== 'undefined' && userIdForVK) {
+if (platform === 'vk' && typeof vkBridge !== 'undefined') {
     tasksToWait++;
     saveLog('💾 Загружаем из VK Storage...');
     
-    // Пробуем стандартный способ
+    // Получаем ID для VK Storage
+    // ❗ Для storage НЕ НУЖНО передавать user_id, он берётся из токена!
+    // Но если мы передаём, то нужно использовать правильный ID
+    const storageUserId = window.vkUserIdForLeaderboard || window.vkUserId;
+    
+    saveLog('💾 ID для VK Storage:', storageUserId);
+    
+    // Пробуем загрузить БЕЗ user_id (так должно работать везде)
     vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
         .then(data => {
-            saveLog('💾 Ответ VK Storage (стандартный):', data);
+            saveLog('💾 Ответ VK Storage (без user_id):', data);
             if (data && data.keys && data.keys[0] && data.keys[0].value) {
-                vkStorageScore = parseInt(data.keys[0].value, 10) || 0;
-                saveLog('💾 VK Storage рекорд (стандартный):', vkStorageScore);
+                const score = parseInt(data.keys[0].value, 10) || 0;
+                vkStorageScore = score;
+                saveLog('💾 VK Storage рекорд (без user_id):', vkStorageScore);
                 checkAndFinalize();
             } else {
-                saveLog('⚠️ Стандартный способ вернул пустой ответ, пробуем альтернативный');
-                // Используем альтернативный способ
-                loadFromVKStorageAlternative(CLOUD_STORAGE_KEY)
-                    .then(score => {
+                saveLog('⚠️ Без user_id пусто, пробуем с user_id');
+                // Пробуем с user_id
+                vkBridge.send('VKWebAppStorageGet', { 
+                    keys: [CLOUD_STORAGE_KEY],
+                    user_id: storageUserId
+                })
+                .then(data2 => {
+                    saveLog('💾 Ответ VK Storage (с user_id):', data2);
+                    if (data2 && data2.keys && data2.keys[0] && data2.keys[0].value) {
+                        const score = parseInt(data2.keys[0].value, 10) || 0;
                         vkStorageScore = score;
-                        saveLog('💾 VK Storage рекорд (альтернативный):', vkStorageScore);
-                        checkAndFinalize();
-                    })
-                    .catch(err => {
-                        saveLog('❌ Ошибка альтернативной загрузки:', err);
+                        saveLog('💾 VK Storage рекорд (с user_id):', vkStorageScore);
+                    } else {
+                        saveLog('⚠️ И с user_id пусто');
                         vkStorageScore = 0;
-                        checkAndFinalize();
-                    });
-            }
-        })
-        .catch(err => {
-            saveLog('❌ Ошибка стандартной загрузки VK Storage:', err);
-            // Пробуем альтернативный способ
-            loadFromVKStorageAlternative(CLOUD_STORAGE_KEY)
-                .then(score => {
-                    vkStorageScore = score;
-                    saveLog('💾 VK Storage рекорд (альтернативный после ошибки):', vkStorageScore);
+                    }
                     checkAndFinalize();
                 })
                 .catch(err2 => {
-                    saveLog('❌ Ошибка альтернативной загрузки:', err2);
+                    saveLog('❌ Ошибка с user_id:', err2);
                     vkStorageScore = 0;
                     checkAndFinalize();
                 });
+            }
+        })
+        .catch(err => {
+            saveLog('❌ Ошибка без user_id:', err);
+            // Пробуем с user_id
+            vkBridge.send('VKWebAppStorageGet', { 
+                keys: [CLOUD_STORAGE_KEY],
+                user_id: storageUserId
+            })
+            .then(data2 => {
+                saveLog('💾 Ответ VK Storage (с user_id после ошибки):', data2);
+                if (data2 && data2.keys && data2.keys[0] && data2.keys[0].value) {
+                    const score = parseInt(data2.keys[0].value, 10) || 0;
+                    vkStorageScore = score;
+                    saveLog('💾 VK Storage рекорд (с user_id):', vkStorageScore);
+                } else {
+                    vkStorageScore = 0;
+                }
+                checkAndFinalize();
+            })
+            .catch(err2 => {
+                saveLog('❌ Ошибка с user_id:', err2);
+                vkStorageScore = 0;
+                checkAndFinalize();
+            });
         });
-} else {
-    saveLog('⚠️ VK Storage пропущен');
 }
     
     // === ШАГ 8: Загружаем из таблицы лидеров ===
@@ -993,7 +1022,45 @@ export const loadFromVKStorageAlternative = (key) => {
         }
     });
 };
-
+// ===== ДИАГНОСТИКА ID НА ТЕЛЕФОНЕ =====
+export const diagnoseVKIds = () => {
+    console.log('🔍 ДИАГНОСТИКА ID:');
+    console.log('  window.vkUserId:', window.vkUserId);
+    console.log('  window.vkUserIdForLeaderboard:', window.vkUserIdForLeaderboard);
+    console.log('  localStorage vk_user_id:', localStorage.getItem('vk_user_id'));
+    
+    // Проверяем launchParams
+    if (typeof vkBridge !== 'undefined') {
+        vkBridge.send('VKWebAppGetLaunchParams')
+            .then(params => {
+                console.log('📋 Все launchParams:', params);
+                console.log('  vk_user_id:', params.vk_user_id);
+                console.log('  vk_original_vk_id:', params.vk_original_vk_id);
+                console.log('  vk_ok_user_id:', params.vk_ok_user_id);
+                console.log('  vk_original_ok_id:', params.vk_original_ok_id);
+                
+                // Сохраняем все ID в localStorage для анализа
+                localStorage.setItem('vk_all_ids', JSON.stringify({
+                    vk_user_id: params.vk_user_id,
+                    vk_original_vk_id: params.vk_original_vk_id,
+                    vk_ok_user_id: params.vk_ok_user_id,
+                    vk_original_ok_id: params.vk_original_ok_id,
+                    timestamp: new Date().toISOString()
+                }));
+                
+                alert('✅ ID сохранены в localStorage!\n' +
+                      'vk_user_id: ' + params.vk_user_id + '\n' +
+                      'vk_original_vk_id: ' + params.vk_original_vk_id + '\n' +
+                      'vk_ok_user_id: ' + params.vk_ok_user_id);
+            })
+            .catch(err => {
+                console.error('❌ Ошибка получения launchParams:', err);
+                alert('❌ Ошибка: ' + err);
+            });
+    } else {
+        alert('❌ VK Bridge не найден');
+    }
+};
 
 // Добавляем функцию в window для доступа из консоли
 window.showVKLogs = showDebugLogs;
