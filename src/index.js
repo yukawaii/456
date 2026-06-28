@@ -58,8 +58,18 @@ window.store = store;
 window.actions = actions; // тоже пригодится
 console.log('✅ store сохранен в window для отладки');
 //обнуление рекорда на экране (берем его из клауда, а не из локалов)
-store.dispatch(actions.max(0));
-// Начальная реклама и Запуск React
+//store.dispatch(actions.max(0));
+
+// Не обнуляем рекорд при загрузке, а загружаем из VK Storage
+const savedMax = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
+if (savedMax > 0) {
+  store.dispatch(actions.max(savedMax));
+  console.log('✅ Рекорд загружен из localStorage:', savedMax);
+} else {
+  store.dispatch(actions.max(0));
+}
+
+// Начальная реклама (-) и Запуск React
 //showFullscreenAd(() => {
   render(
     React.createElement(Provider, { store: store },

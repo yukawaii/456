@@ -191,26 +191,25 @@ export var loadYandexHighScore = function(storeInstance) {
     console.log('🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
     
     // ✅ Проверяем текущий рекорд в store
+    // Обновляем store
     var currentMax = 0;
     try {
       currentMax = storeInstance.getState().get('max') || 0;
-    } catch(e) {
-      console.warn('⚠️ Не удалось получить текущий рекорд из store:', e);
-    }
-    console.log('📊 Текущий рекорд в store:', currentMax);
+    } catch(e) {}
     
-    // ✅ Обновляем store, если новый рекорд больше ИЛИ если store пуст
-    if (absoluteMax > currentMax || (absoluteMax > 0 && currentMax === 0)) {
+    if (absoluteMax > currentMax) {
       storeInstance.dispatch(actions.max(absoluteMax));
       localStorage.setItem('tetris_high_score', String(absoluteMax));
+      localStorage.setItem('tetris_max_sync', String(absoluteMax)); // ← ДОБАВИТЬ
       if (window.vkUserId) {
         localStorage.setItem('vk_user_id', window.vkUserId);
       }
       console.log('✅ Рекорд обновлён в store:', absoluteMax);
     } else if (absoluteMax > 0 && currentMax !== absoluteMax) {
-      // Принудительное обновление, если значения различаются
+      // ← ЭТОТ БЛОК ДОБАВИТЬ ПОЛНОСТЬЮ
       storeInstance.dispatch(actions.max(absoluteMax));
       localStorage.setItem('tetris_high_score', String(absoluteMax));
+      localStorage.setItem('tetris_max_sync', String(absoluteMax));
       console.log('🔄 Принудительное обновление store до:', absoluteMax);
     }
     

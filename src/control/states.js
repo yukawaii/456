@@ -6,6 +6,21 @@ import { speeds, blankLine, blankMatrix, clearPoints, eachLines } from '../unit/
 import { music } from '../unit/music';
 import { getYsdk } from '../unit/yandexSdk';  
 import { saveYandexScore } from '../unit/yandexSdk';
+
+// ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ РЕКОРДА ИЗ VK STORAGE =====
+export const syncMaxFromVK = function() {
+  // Получаем рекорд из localStorage (он обновляется в loadYandexHighScore)
+  var savedMax = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
+  var currentMax = store.getState().get('max') || 0;
+  
+  if (savedMax > currentMax) {
+    console.log('🔄 Синхронизация рекорда из VK Storage:', savedMax);
+    store.dispatch(actions.max(savedMax));
+    return true;
+  }
+  return false;
+};
+
 // Переменная для хранения времени последнего УСПЕШНОГО показа рекламы (в миллисекундах)
 let lastAdShowTime = 0; let isFirstStart = true;
 // ---  функция для показа полноэкранной рекламы  ---
@@ -52,6 +67,7 @@ const getStartMatrix = (startLines) => {
 const states = {
   fallInterval: null,
   start: () => {
+    syncMaxFromVK();
     isFirstStart = false;
     if (music.start) {
       music.start();
@@ -138,23 +154,28 @@ const states = {
       states.auto();
     }
   },
-  pause: (isPause) => {
-    store.dispatch(actions.pause(isPause));
-    if (isPause) {
-      clearTimeout(states.fallInterval);
-      //отправка  рекорда (текущий счёт) в облако и таблицу на паузе
-// Текущие очки игрока
-    const currentPoints = store.getState().get('points') || 0;    
-    // Отправляем текущие очки в облако и таблицу (если нужно)
+pause: (isPause) => {
+  store.dispatch(actions.pause(isPause));
+  if (isPause) {
+    clearTimeout(states.fallInterval);
+    const currentPoints = store.getState().get('points') || 0;
     if (typeof saveYandexScore === 'function') {
       saveYandexScore(currentPoints);
     }
-      // РЕКЛАМА ПРИ ПАУЗЕ: когда включается пауза, запускаем показ рекламы     
-      showYandexAdv();
-      return;
+    // ✅ synhr record:
+    const savedFromVK = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
+    if (currentPoints > savedFromVK) {
+      localStorage.setItem('tetris_high_score', String(currentPoints));
+      localStorage.setItem('tetris_max_sync', String(currentPoints));
+      console.log('🔄 Локальный рекорд обновлён на паузе:', currentPoints);
     }
-    states.auto();
-  },
+    showYandexAdv();
+    return;
+  }
+  states.auto();
+},
+
+
   clearLines: (matrix, lines) => {
     const state = store.getState();
     let newMatrix = matrix;
@@ -183,20 +204,26 @@ const states = {
     store.dispatch(actions.reset(true));
     store.dispatch(actions.pause(false));    
     
-    // --- ОТПРАВЛЯЕМ ФИНАЛЬНЫЙ РЕКОРД  ОДИН РАЗ ПРИ ПРОИГРЫШЕ ---
-        try {
-            // 1. Берем текущие очки текущей сессии
-            const currentPoints = store.getState().get('points') || 0;
-            // 2. Берем исторический максимум, сохраненный в игре
-            const maxRecord = store.getState().get('max') || 0;            
-            // Выбираем, какое число больше — текущее или историческое
-            const finalScore = Math.max(currentPoints, maxRecord);
-            console.log(`[VK Рекорд] Текущие очки: ${currentPoints}, Лучший рекорд: ${maxRecord}. Отправляем в функцию saveYandexscore: ${finalScore}`);
-            if (typeof saveYandexScore === 'function') {
-                saveYandexScore(finalScore);
-            }
-        } catch(e) {            console.error('Ошибка вызова saveYandexScore при проигрыше:', e);
-        }    
+ // --- ОТПРАВЛЯЕМ ФИНАЛЬНЫЙ РЕКОРД ---
+  try {
+    const currentPoints = store.getState().get('points') || 0;
+    const maxRecord = store.getState().get('max') || 0;
+    const finalScore = Math.max(currentPoints, maxRecord);
+    console.log(`[VK Рекорд] Текущие очки: ${currentPoints}, Лучший рекорд: ${maxRecord}. Отправляем в функцию saveYandexscore: ${finalScore}`);
+    if (typeof saveYandexScore === 'function') {
+      saveYandexScore(finalScore);
+    }    
+    // После сохранения рекорда — синхронизируем локальное хранилище
+    const savedFromVK = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
+    if (finalScore > savedFromVK) {
+      localStorage.setItem('tetris_high_score', String(finalScore));
+      localStorage.setItem('tetris_max_sync', String(finalScore));
+      console.log('🔄 Локальный рекорд обновлён:', finalScore);
+    }
+    
+  } catch(e) {
+    console.error('Ошибка вызова saveYandexScore при проигрыше:', e);
+  }
    // Показываем рекламу только если это не первый запуск
   if (typeof showYandexAdv === 'function' && !isFirstStart) {
     showYandexAdv();     
