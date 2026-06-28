@@ -151,6 +151,7 @@ function logPlatform() {
 }
 
 // ===== ЗАГРУЗКА РЕКОРДА =====
+// ===== ЗАГРУЗКА РЕКОРДА =====
 export var loadYandexHighScore = function(storeInstance) {
   console.log('🔥 loadYandexHighScore ВЫЗВАН!');
   var platform = getPlatform();
@@ -178,6 +179,7 @@ export var loadYandexHighScore = function(storeInstance) {
   var leaderboardScore = 0;
   var tasksToWait = 0;
   
+  // ===== ИСПРАВЛЕННЫЙ finalizeAndSync =====
   var finalizeAndSync = function() {
     console.log('🔥 FINALIZE_AND_SYNC');
     console.log('  localScore:', localScore);
@@ -187,6 +189,30 @@ export var loadYandexHighScore = function(storeInstance) {
     
     var absoluteMax = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
     console.log('🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
+    
+    // ✅ Проверяем текущий рекорд в store
+    var currentMax = 0;
+    try {
+      currentMax = storeInstance.getState().get('max') || 0;
+    } catch(e) {
+      console.warn('⚠️ Не удалось получить текущий рекорд из store:', e);
+    }
+    console.log('📊 Текущий рекорд в store:', currentMax);
+    
+    // ✅ Обновляем store, если новый рекорд больше ИЛИ если store пуст
+    if (absoluteMax > currentMax || (absoluteMax > 0 && currentMax === 0)) {
+      storeInstance.dispatch(actions.max(absoluteMax));
+      localStorage.setItem('tetris_high_score', String(absoluteMax));
+      if (window.vkUserId) {
+        localStorage.setItem('vk_user_id', window.vkUserId);
+      }
+      console.log('✅ Рекорд обновлён в store:', absoluteMax);
+    } else if (absoluteMax > 0 && currentMax !== absoluteMax) {
+      // Принудительное обновление, если значения различаются
+      storeInstance.dispatch(actions.max(absoluteMax));
+      localStorage.setItem('tetris_high_score', String(absoluteMax));
+      console.log('🔄 Принудительное обновление store до:', absoluteMax);
+    }
     
     // Принудительная синхронизация — только если текущий рекорд больше
     if (platform === 'vk' && typeof vkBridge !== 'undefined' && userIdForVK) {
@@ -217,21 +243,6 @@ export var loadYandexHighScore = function(storeInstance) {
           value: String(localScore)
         }).catch(function(err) { console.error('❌ Ошибка VK Storage (local):', err); });
       }
-    }
-    
-    // Обновляем store
-    var currentMax = 0;
-    try {
-      currentMax = storeInstance.getState().get('max') || 0;
-    } catch(e) {}
-    
-    if (absoluteMax > currentMax) {
-      storeInstance.dispatch(actions.max(absoluteMax));
-      localStorage.setItem('tetris_high_score', String(absoluteMax));
-      if (window.vkUserId) {
-        localStorage.setItem('vk_user_id', window.vkUserId);
-      }
-      console.log('✅ Рекорд обновлён в store:', absoluteMax);
     }
     
     // Сохраняем в Cloudflare (как резерв) — только если больше
