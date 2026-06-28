@@ -63,7 +63,7 @@ export default class Point extends React.Component {
 
 onChange({ cur, point, max }) {
   clearInterval(Point.timeout);
-  if (cur) { // игра идёт — показываем текущие очки
+  if (cur) { // игра идёт
     this.setState({
       label: point >= max ? ZDF : DF,
       number: point,
@@ -75,7 +75,6 @@ onChange({ cur, point, max }) {
     });
   }
 }
-
 
 
   render() {

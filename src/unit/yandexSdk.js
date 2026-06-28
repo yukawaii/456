@@ -325,9 +325,29 @@ export var loadYandexHighScore = function(storeInstance) {
           }
         }
         
-        vkStorageScore = score;
-        console.log('💾 Итоговый VK Storage рекорд:', vkStorageScore);
-        checkAndFinalize();
+vkStorageScore = score;
+console.log('💾 Итоговый VK Storage рекорд:', vkStorageScore);
+
+// ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ РЕКОРД НА ЭКРАНЕ
+var currentMax = 0;
+try {
+  currentMax = storeInstance.getState().get('max') || 0;
+} catch(e) {}
+
+if (vkStorageScore > currentMax) {
+  storeInstance.dispatch(actions.max(vkStorageScore));
+  localStorage.setItem('tetris_high_score', String(vkStorageScore));
+  localStorage.setItem('tetris_max_sync', String(vkStorageScore));
+  console.log('✅ РЕКОРД ОБНОВЛЁН НА ЭКРАНЕ:', vkStorageScore);
+} else if (vkStorageScore > 0 && currentMax === 0) {
+  // Если store пуст, но есть рекорд в VK
+  storeInstance.dispatch(actions.max(vkStorageScore));
+  localStorage.setItem('tetris_high_score', String(vkStorageScore));
+  localStorage.setItem('tetris_max_sync', String(vkStorageScore));
+  console.log('✅ РЕКОРД ЗАГРУЖЕН ИЗ VK STORAGE:', vkStorageScore);
+}
+
+checkAndFinalize();
       })
       .catch(function(err) {
         console.error('❌ Ошибка загрузки VK Storage:', err);

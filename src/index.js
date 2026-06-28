@@ -65,8 +65,6 @@ const savedMax = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
 if (savedMax > 0) {
   store.dispatch(actions.max(savedMax));
   console.log('✅ Рекорд загружен из localStorage:', savedMax);
-} else {
-  store.dispatch(actions.max(0));
 }
 
 // Начальная реклама (-) и Запуск React
