@@ -27,17 +27,26 @@ logPlatform();
 var PLATFORM = getPlatform();
 
 
-// Инициализация VK и загрузка рекорда (не блокирует рендер)
-// src/index.js
-
+// Инициализация VK и загрузка рекорда
 if (typeof vkBridge !== 'undefined') {
   console.log('🔥 vkBridge найден, вызываем initYandexSdk...');
   
-  initYandexSdk().then(() => {
+  initYandexSdk().then(function() {
     console.log('🔥 initYandexSdk завершен!');
     
-    // ✅ Сначала загружаем рекорд из Cloudflare
+    // ✅ Сначала загружаем рекорд из VK Storage
     loadYandexHighScore(store);
+    
+    // ✅ ПРОВЕРЯЕМ: если локальный рекорд больше, чем в VK Storage — сохраняем
+    var localMax = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
+    var currentMax = store.getState().get('max') || 0;
+    
+    if (localMax > currentMax) {
+      console.log('🔄 Локальный рекорд больше (' + localMax + ' > ' + currentMax + '), сохраняем в VK Storage...');
+      saveYandexScore(localMax);
+    } else {
+      console.log('✅ Рекорд синхронизирован:', currentMax);
+    }
     
     // ✅ Потом подписываемся на изменения
     subscribeRecord(store);
@@ -45,7 +54,7 @@ if (typeof vkBridge !== 'undefined') {
     if (typeof showBannerAd === 'function') {
       showBannerAd();
     }
-  }).catch(err => {
+  }).catch(function(err) {
     console.error('Ошибка инициализации:', err);
     loadYandexHighScore(store);
     subscribeRecord(store);
