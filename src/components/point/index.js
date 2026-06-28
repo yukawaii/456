@@ -26,7 +26,7 @@ export default class Point extends React.Component {
     const props = this.props;
     return cur !== props.cur || point !== props.point || max !== props.max || !props.cur;
   }
-  onChange({ cur, point, max }) {
+ /* onChange({ cur, point, max }) {
     clearInterval(Point.timeout);
     if (cur) { // 在游戏进行中
       this.setState({
@@ -48,16 +48,36 @@ export default class Point extends React.Component {
         }, 3000);
       };
 
-      if (point !== 0) { // 如果为上轮没玩, 也不用提示了
+     if (point !== 0) { // 如果为上轮没玩, 也不用提示了
         toggle();
       } else {
         this.setState({
           label: ZDF,
           number: max,
         });
-      }
+      } 
+
+
     }
+  } */
+
+onChange({ cur, point, max }) {
+  clearInterval(Point.timeout);
+  if (cur) { // игра идёт — показываем текущие очки
+    this.setState({
+      label: point >= max ? ZDF : DF,
+      number: point,
+    });
+  } else { // игра не идёт — показываем рекорд
+    this.setState({
+      label: ZDF,
+      number: max, // ← всегда рекорд
+    });
   }
+}
+
+
+
   render() {
     return (
       <div>
