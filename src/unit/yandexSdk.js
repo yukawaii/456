@@ -150,7 +150,7 @@ function logPlatform() {
     console.log('🎮 Платформа:', getPlatform());
 }
 
-// ===== ЗАГРУЗКА РЕКОРДА =====
+
 // ===== ЗАГРУЗКА РЕКОРДА =====
 export var loadYandexHighScore = function(storeInstance) {
   console.log('🔥 loadYandexHighScore ВЫЗВАН!');
@@ -172,7 +172,7 @@ export var loadYandexHighScore = function(storeInstance) {
       localScore = parseInt(localStorage.getItem('tetris_high_score'), 10) || 0;
     } catch(e2) {}
   }
-  console.log('📀 localStorage рекорд:', localScore);
+  console.log('loadYandexHighScore 📀 localStorage рекорд:', localScore);
   
   var cloudflareScore = 0;
   var vkStorageScore = 0;
@@ -182,13 +182,13 @@ export var loadYandexHighScore = function(storeInstance) {
   // ===== ИСПРАВЛЕННЫЙ finalizeAndSync =====
   var finalizeAndSync = function() {
     console.log('🔥 FINALIZE_AND_SYNC');
-    console.log('  localScore:', localScore);
-    console.log('  cloudflareScore:', cloudflareScore);
-    console.log('  vkStorageScore:', vkStorageScore);
-    console.log('  leaderboardScore:', leaderboardScore);
+    console.log(' FINALIZE_AND_SYNC localScore:', localScore);
+    console.log('FINALIZE_AND_SYNC  cloudflareScore:', cloudflareScore);
+    console.log(' FINALIZE_AND_SYNC vkStorageScore:', vkStorageScore);
+    console.log(' FINALIZE_AND_SYNC leaderboardScore:', leaderboardScore);
     
     var absoluteMax = Math.max(localScore, cloudflareScore, vkStorageScore, leaderboardScore);
-    console.log('🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
+    console.log('FINALIZE_AND_SYNC🏆 АБСОЛЮТНЫЙ МАКСИМУМ:', absoluteMax);
     
     // ✅ Проверяем текущий рекорд в store
     // Обновляем store
@@ -204,13 +204,13 @@ export var loadYandexHighScore = function(storeInstance) {
       if (window.vkUserId) {
         localStorage.setItem('vk_user_id', window.vkUserId);
       }
-      console.log('✅ Рекорд обновлён в store:', absoluteMax);
+      console.log('FINALIZE_AND_SYNC✅ Рекорд обновлён в store:', absoluteMax);
     } else if (absoluteMax > 0 && currentMax !== absoluteMax) {
-      // ← ЭТОТ БЛОК ДОБАВИТЬ ПОЛНОСТЬЮ
+      // 
       storeInstance.dispatch(actions.max(absoluteMax));
       localStorage.setItem('tetris_high_score', String(absoluteMax));
       localStorage.setItem('tetris_max_sync', String(absoluteMax));
-      console.log('🔄 Принудительное обновление store до:', absoluteMax);
+      console.log('FINALIZE_AND_SYNC🔄 Принудительное обновление store до:', absoluteMax);
     }
     
     // Принудительная синхронизация — только если текущий рекорд больше
@@ -218,37 +218,37 @@ export var loadYandexHighScore = function(storeInstance) {
       // Если VK Storage пуст, но есть рекорд — сохраняем!
       if (vkStorageScore === 0 && (cloudflareScore > 0 || localScore > 0)) {
         var maxScore = Math.max(cloudflareScore, localScore);
-        console.log('⚠️ VK Storage = 0! Принудительно сохраняем:', maxScore);
+        console.log('loadYandexHighScore⚠️ VK Storage = 0! Принудительно сохраняем:', maxScore);
         vkBridge.send('VKWebAppStorageSet', {
           key: CLOUD_STORAGE_KEY,
           value: String(maxScore)
-        }).catch(function(err) { console.error('❌ Ошибка принудительного сохранения:', err); });
+        }).catch(function(err) { console.error('loadYandexHighScore❌ Ошибка принудительного сохранения:', err); });
       }
       
       // Синхронизация из Cloudflare — только если больше
       if (cloudflareScore > vkStorageScore && cloudflareScore > 0) {
-        console.log('🔄 VK Storage обновлён из Cloudflare:', cloudflareScore);
+        console.log('loadYandexHighScore🔄 VK Storage обновлён из Cloudflare:', cloudflareScore);
         vkBridge.send('VKWebAppStorageSet', {
           key: CLOUD_STORAGE_KEY,
           value: String(cloudflareScore)
-        }).catch(function(err) { console.error('❌ Ошибка VK Storage (Cloudflare):', err); });
+        }).catch(function(err) { console.error('loadYandexHighScore❌ Ошибка VK Storage (Cloudflare):', err); });
       }
       
       // Синхронизация из localStorage — только если больше
       if (localScore > vkStorageScore && localScore > 0) {
-        console.log('🔄 VK Storage обновлён из localStorage:', localScore);
+        console.log('loadYandexHighScore🔄 VK Storage обновлён из localStorage:', localScore);
         vkBridge.send('VKWebAppStorageSet', {
           key: CLOUD_STORAGE_KEY,
           value: String(localScore)
-        }).catch(function(err) { console.error('❌ Ошибка VK Storage (local):', err); });
+        }).catch(function(err) { console.error('loadYandexHighScore❌ Ошибка VK Storage (local):', err); });
       }
     }
     
     // Сохраняем в Cloudflare (как резерв) — только если больше
     if (window.vkUserId && absoluteMax > cloudflareScore) {
       saveCloudScore(window.vkUserId, absoluteMax)
-        .then(function() { console.log('☁️ Cloudflare сохранён:', absoluteMax); })
-        .catch(function(err) { console.error('❌ Ошибка Cloudflare:', err); });
+        .then(function() { console.log('loadYandexHighScore☁️ Cloudflare сохранён:', absoluteMax); })
+        .catch(function(err) { console.error('loadYandexHighScore❌ Ошибка Cloudflare:', err); });
     }
     
     // Таблица лидеров ВК — только если больше
@@ -266,8 +266,8 @@ export var loadYandexHighScore = function(storeInstance) {
           access_token: ACCESS_TOKEN
         }
       })
-      .then(function() { console.log('✅ Таблица лидеров обновлена'); })
-      .catch(function(err) { console.error('❌ Ошибка таблицы лидеров:', err); });
+      .then(function() { console.log('loadYandexHighScore✅ Таблица лидеров обновлена'); })
+      .catch(function(err) { console.error('loadYandexHighScore❌ Ошибка таблицы лидеров:', err); });
     }
   };
   
@@ -284,11 +284,11 @@ export var loadYandexHighScore = function(storeInstance) {
     loadCloudScore(window.vkUserId)
       .then(function(score) {
         cloudflareScore = score;
-        console.log('☁️ Cloudflare рекорд:', cloudflareScore);
+        console.log('loadYandexHighScore☁️ Cloudflare рекорд:', cloudflareScore);
         checkAndFinalize();
       })
       .catch(function() {
-        console.warn('⚠️ Ошибка Cloudflare');
+        console.warn('loadYandexHighScore⚠️ Ошибка Cloudflare');
         checkAndFinalize();
       });
   }
@@ -296,37 +296,37 @@ export var loadYandexHighScore = function(storeInstance) {
   // Загружаем из VK Storage
   if (platform === 'vk' && typeof vkBridge !== 'undefined') {
     tasksToWait++;
-    console.log('💾 Загружаем из VK Storage с ключом:', CLOUD_STORAGE_KEY);
+    console.log('loadYandexHighScore💾 Загружаем из VK Storage с ключом:', CLOUD_STORAGE_KEY);
     
     vkBridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
       .then(function(data) {
-        console.log('💾 Полный ответ VK Storage:', JSON.stringify(data));
+        console.log('loadYandexHighScore💾 Полный ответ VK Storage:', JSON.stringify(data));
         
         var score = 0;
         if (data && data.keys) {
           if (Array.isArray(data.keys)) {
             if (data.keys.length > 0 && data.keys[0].value !== undefined) {
               score = parseInt(data.keys[0].value, 10) || 0;
-              console.log('💾 Рекорд найден (массив):', score);
+              console.log('loadYandexHighScore💾 Рекорд найден (массив):', score);
             }
           } else if (typeof data.keys === 'object' && data.keys !== null) {
             if (data.keys.value !== undefined) {
               score = parseInt(data.keys.value, 10) || 0;
-              console.log('💾 Рекорд найден (объект):', score);
+              console.log('loadYandexHighScore💾 Рекорд найден (объект):', score);
             } else if (data.keys[CLOUD_STORAGE_KEY] !== undefined) {
               score = parseInt(data.keys[CLOUD_STORAGE_KEY], 10) || 0;
-              console.log('💾 Рекорд найден (объект по ключу):', score);
+              console.log('loadYandexHighScore💾 Рекорд найден (объект по ключу):', score);
             }
           } else if (data.response) {
             if (Array.isArray(data.response) && data.response.length > 0) {
               score = parseInt(data.response[0], 10) || 0;
-              console.log('💾 Рекорд найден (response):', score);
+              console.log('loadYandexHighScore💾 Рекорд найден (response):', score);
             }
           }
         }
         
 vkStorageScore = score;
-console.log('💾 Итоговый VK Storage рекорд:', vkStorageScore);
+console.log('loadYandexHighScore💾 Итоговый VK Storage рекорд:', vkStorageScore);
 
 // ✅ ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ РЕКОРД НА ЭКРАНЕ
 var currentMax = 0;
@@ -338,19 +338,19 @@ if (vkStorageScore > currentMax) {
   storeInstance.dispatch(actions.max(vkStorageScore));
   localStorage.setItem('tetris_high_score', String(vkStorageScore));
   localStorage.setItem('tetris_max_sync', String(vkStorageScore));
-  console.log('✅ РЕКОРД ОБНОВЛЁН НА ЭКРАНЕ:', vkStorageScore);
+  console.log('loadYandexHighScore✅ РЕКОРД ОБНОВЛЁН НА ЭКРАНЕ:', vkStorageScore);
 } else if (vkStorageScore > 0 && currentMax === 0) {
   // Если store пуст, но есть рекорд в VK
   storeInstance.dispatch(actions.max(vkStorageScore));
   localStorage.setItem('tetris_high_score', String(vkStorageScore));
   localStorage.setItem('tetris_max_sync', String(vkStorageScore));
-  console.log('✅ РЕКОРД ЗАГРУЖЕН ИЗ VK STORAGE:', vkStorageScore);
+  console.log('loadYandexHighScore✅ РЕКОРД ЗАГРУЖЕН ИЗ VK STORAGE:', vkStorageScore);
 }
 
 checkAndFinalize();
       })
       .catch(function(err) {
-        console.error('❌ Ошибка загрузки VK Storage:', err);
+        console.error('loadYandexHighScore❌ Ошибка загрузки VK Storage:', err);
         vkStorageScore = 0;
         checkAndFinalize();
       });
@@ -370,11 +370,11 @@ checkAndFinalize();
     })
     .then(function(data) {
       leaderboardScore = parseInt(data.response) || 0;
-      console.log('🏆 Таблица лидеров:', leaderboardScore);
+      console.log('loadYandexHighScore🏆 Таблица лидеров:', leaderboardScore);
       checkAndFinalize();
     })
     .catch(function(err) {
-      console.warn('⚠️ Ошибка таблицы лидеров:', err);
+      console.warn('loadYandexHighScore⚠️ Ошибка таблицы лидеров:', err);
       checkAndFinalize();
     });
   }
@@ -385,79 +385,102 @@ checkAndFinalize();
 };
 
 // ===== СОХРАНЕНИЕ РЕКОРДА =====
+// ===== СОХРАНЕНИЕ РЕКОРДА =====
 export var saveYandexScore = function(scoreValue) {
   console.log('🔥 saveYandexScore ВЫЗВАН!');
   var platform = getPlatform();
   var effectiveUserId = window.vkUserIdForLeaderboard || window.vkUserId;
-  console.log('📱 Платформа:', platform);
+  console.log('saveYandexScore📱 Платформа:', platform);
   
   var currentScore = parseInt(scoreValue, 10) || 0;
   if (currentScore <= 0) return;
   
-  // Проверяем локальный рекорд
+  // Проверяем локальный рекорд в store
   var localMax = 0;
   try {
     localMax = store.getState().get('max') || 0;
   } catch(e) {}
   
+  // Быстрая проверка локального рекорда
   if (currentScore <= localMax) {
-    console.log('📀 Рекорд не побит (локально): ' + currentScore + ' <= ' + localMax);
+    console.log('saveYandexScore📀 Рекорд не побит (локально): ' + currentScore + ' <= ' + localMax);
     return;
   }
   
-  // Сохраняем локально
+  // Сохраняем локально (сразу, чтобы не потерять)
   localStorage.setItem('tetris_high_score', String(currentScore));
+  localStorage.setItem('tetris_max_sync', String(currentScore));
   store.dispatch(actions.max(currentScore));
-  console.log('📀 Рекорд сохранён в localStorage:', currentScore);
+  console.log('saveYandexScore📀 Рекорд сохранён локально:', currentScore);
   
   var bridge = typeof vkBridge !== 'undefined' ? vkBridge : window.vkBridge;
   
-  // Сохраняем в VK Storage
-  if (bridge && platform === 'vk') {
-    // Сначала проверяем текущий рекорд в VK Storage
-    bridge.send('VKWebAppStorageGet', { keys: [CLOUD_STORAGE_KEY] })
-      .then(function(data) {
-        var existingScore = 0;
-        if (data && data.keys) {
-          if (Array.isArray(data.keys) && data.keys.length > 0 && data.keys[0].value !== undefined) {
-            existingScore = parseInt(data.keys[0].value, 10) || 0;
-          } else if (typeof data.keys === 'object' && data.keys.value !== undefined) {
-            existingScore = parseInt(data.keys.value, 10) || 0;
-          }
-        }
-        console.log('💾 Текущий рекорд в VK Storage:', existingScore);
-        
-        // Сохраняем только если новый рекорд больше
-        if (currentScore > existingScore) {
-          bridge.send('VKWebAppStorageSet', {
-            key: CLOUD_STORAGE_KEY,
-            value: String(currentScore)
-          })
-          .then(function() { console.log('💾 VK Storage: рекорд ' + currentScore + ' сохранён'); })
-          .catch(function(err) { console.error('❌ Ошибка VK Storage:', err); });
-        } else {
-          console.log('💾 VK Storage: рекорд ' + currentScore + ' НЕ сохранён (существующий ' + existingScore + ' больше)');
-        }
-      })
-      .catch(function(err) {
-        console.warn('⚠️ Ошибка проверки VK Storage, пробуем сохранить:', err);
-        bridge.send('VKWebAppStorageSet', {
-          key: CLOUD_STORAGE_KEY,
-          value: String(currentScore)
+  // ===== 1. СОХРАНЯЕМ В VK STORAGE (с проверкой) =====
+  if (bridge && platform === 'vk' && effectiveUserId) {
+    // Проверяем текущий рекорд в VK Storage
+    fetch('https://api.vk.com/method/storage.get', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'key=' + encodeURIComponent(CLOUD_STORAGE_KEY) + 
+            '&user_id=' + effectiveUserId + 
+            '&v=5.131' + 
+            '&access_token=' + ACCESS_TOKEN
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+      var existingScore = 0;
+      if (data.response && data.response[0] && data.response[0].value) {
+        existingScore = parseInt(data.response[0].value, 10) || 0;
+      }
+      console.log('saveYandexScore💾 Текущий рекорд в VK Storage:', existingScore);
+      
+      // Сохраняем только если новый рекорд БОЛЬШЕ
+      if (currentScore > existingScore) {
+        // Отправляем в VK Storage
+        fetch('https://api.vk.com/method/storage.set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'key=' + encodeURIComponent(CLOUD_STORAGE_KEY) + 
+                '&value=' + encodeURIComponent(String(currentScore)) + 
+                '&user_id=' + effectiveUserId + 
+                '&v=5.131' + 
+                '&access_token=' + ACCESS_TOKEN
         })
-        .then(function() { console.log('💾 VK Storage: рекорд ' + currentScore + ' сохранён (без проверки)'); })
-        .catch(function(err2) { console.error('❌ Ошибка VK Storage:', err2); });
-      });
+        .then(function(resp) { return resp.json(); })
+        .then(function(result) {
+          if (result.response === 1) {
+            console.log('saveYandexScore✅ VK Storage обновлён:', currentScore);
+          } else {
+            console.warn('saveYandexScore⚠️ VK Storage ответил ошибкой:', result);
+          }
+        })
+        .catch(function(err) {
+          console.warn('saveYandexScore⚠️ Ошибка сохранения в VK Storage:', err);
+        });
+      } else {
+        console.log('saveYandexScore💾 VK Storage: рекорд ' + currentScore + ' НЕ сохранён (существующий ' + existingScore + ' больше)');
+      }
+    })
+    .catch(function(err) {
+      console.warn('saveYandexScore⚠️ Ошибка проверки VK Storage:', err);
+      // Если не удалось проверить — пробуем сохранить через bridge
+      bridge.send('VKWebAppStorageSet', {
+        key: CLOUD_STORAGE_KEY,
+        value: String(currentScore)
+      })
+      .then(function() { console.log('saveYandexScore💾 VK Storage (bridge): рекорд ' + currentScore + ' сохранён'); })
+      .catch(function(err2) { console.warn('saveYandexScore⚠️ VK Storage (bridge) не сработал:', err2); });
+    });
   }
   
-  // Сохраняем в Cloudflare (только если больше)
+  // ===== 2. СОХРАНЯЕМ В CLOUDFLARE =====
   if (window.vkUserId && currentScore > 0) {
     saveCloudScore(window.vkUserId, currentScore)
-      .then(function() { console.log('☁️ Cloudflare: рекорд ' + currentScore + ' сохранён'); })
-      .catch(function(err) { console.error('❌ Ошибка Cloudflare:', err); });
+      .then(function() { console.log('saveYandexScore☁️ Cloudflare: рекорд ' + currentScore + ' сохранён'); })
+      .catch(function(err) { console.error('saveYandexScore❌ Ошибка Cloudflare:', err); });
   }
   
-  // Таблица лидеров ВК (только если больше)
+  // ===== 3. ТАБЛИЦА ЛИДЕРОВ ВК =====
   if (platform === 'vk' && bridge && vkInitialized && effectiveUserId && vkUserToken) {
     bridge.send('VKWebAppCallAPIMethod', {
       method: 'secure.addAppEvent',
@@ -472,11 +495,11 @@ export var saveYandexScore = function(scoreValue) {
         access_token: ACCESS_TOKEN
       }
     })
-    .then(function() { console.log('🏆 Таблица лидеров ВК: рекорд ' + currentScore + ' отправлен!'); })
-    .catch(function(err) { console.error('❌ Ошибка таблицы лидеров:', err); });
+    .then(function() { console.log('saveYandexScore🏆 Таблица лидеров ВК: рекорд ' + currentScore + ' отправлен!'); })
+    .catch(function(err) { console.error('saveYandexScore❌ Ошибка таблицы лидеров:', err); });
   }
   
-  console.log('✅ Рекорд ' + currentScore + ' успешно сохранён!');
+  console.log('saveYandexScore✅ Рекорд ' + currentScore + ' успешно обработан!');
 };
 
 // ===== ЛИДЕРБОРД =====
@@ -484,7 +507,7 @@ export var fetchYandexLeaderboard = function() {
   return new Promise(function(resolve) {
     var platform = getPlatform();
     if (platform === 'ok') {
-      console.log('[ОК] Предлагаем оценить приложение');
+      console.log('[ОК] Предлагаем оценить приложение fetchYandexLeaderboard');
       var title = "Оцените игру!";
       var text = "Если вам нравится ТЕТРА, поставьте оценку в магазине приложений. Это поможет нам стать лучше!";
       if (typeof i18n !== 'undefined' && i18n.rateGame && i18n.rateGame[lan]) {
@@ -503,7 +526,7 @@ export var fetchYandexLeaderboard = function() {
     vkBridge.send('VKWebAppShowLeaderBoardBox', { user_result: currentMaxScore })
       .then(function() { resolve({ status: 'success' }); })
       .catch(function(error) {
-        console.error('Ошибка открытия лидерборда:', error);
+        console.error('fetchYandexLeaderboard Ошибка открытия лидерборда:', error);
         resolve({ status: 'error', error: error });
       });
   });
@@ -574,7 +597,7 @@ export var loadCloudScore = function(userId) {
       resolve(data.score || 0);
     })
     .catch(function(err) {
-      console.error('[Cloudflare] Ошибка загрузки:', err);
+      console.error('loadCloudScore [Cloudflare] Ошибка загрузки:', err);
       resolve(0);
     });
   });
@@ -590,14 +613,14 @@ export var saveCloudScore = function(userId, score) {
     .then(function(response) { return response.json(); })
     .then(function(data) {
       if (data.success) {
-        console.log('☁️ Cloudflare: рекорд ' + score + ' сохранён (было ' + data.old + ')');
+        console.log('saveCloudScore ☁️ Cloudflare: рекорд ' + score + ' сохранён (было ' + data.old + ')');
       } else {
-        console.log('☁️ Cloudflare: рекорд не побит (' + data.current + ')');
+        console.log('saveCloudScore ☁️ Cloudflare: рекорд не побит (' + data.current + ')');
       }
       resolve(data.success);
     })
     .catch(function(err) {
-      console.error('[Cloudflare] Ошибка сохранения:', err);
+      console.error('saveCloudScore [Cloudflare] Ошибка сохранения:', err);
       resolve(false);
     });
   });
